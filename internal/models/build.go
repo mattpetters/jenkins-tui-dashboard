@@ -24,6 +24,7 @@ func (s BuildStatus) String() string {
 // Build represents a Jenkins build for a PR
 type Build struct {
 	PRNumber        string
+	GitBranch       string // Git branch name from GitHub (e.g., "feature/add-auth")
 	Status          BuildStatus
 	Stage           string
 	JobName         string

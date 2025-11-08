@@ -1,5 +1,5 @@
 #!/bin/bash
-# Quick run script for Jenkins Dashboard
+# Quick build and run script for Jenkins Dashboard
 
 set -e
 

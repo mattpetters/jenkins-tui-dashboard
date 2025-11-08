@@ -18,12 +18,12 @@ func TestExtractStageInfo(t *testing.T) {
 
 	phase, jobs := ExtractStageInfo(stages, models.StatusRunning)
 
-	// Phase should be the last phase label seen before current activity
-	if phase != "BUILD:" {
-		t.Errorf("Expected phase 'BUILD:', got '%s'", phase)
+	// Phase should be the actual running stage name (not the phase label)
+	if phase != "Run Integration Tests" {
+		t.Errorf("Expected phase 'Run Integration Tests', got '%s'", phase)
 	}
 
-	// Jobs should be the currently running tasks
+	// Jobs should be the same as phase for single task
 	if jobs != "Run Integration Tests" {
 		t.Errorf("Expected jobs 'Run Integration Tests', got '%s'", jobs)
 	}
@@ -40,13 +40,14 @@ func TestExtractStageInfo_ParallelStages(t *testing.T) {
 
 	phase, jobs := ExtractStageInfo(stages, models.StatusRunning)
 
-	if phase != "Test:" {
-		t.Errorf("Expected phase 'Test:', got '%s'", phase)
+	// Phase shows the last active stage name
+	if phase != "Run Integration Tests" {
+		t.Errorf("Expected phase 'Run Integration Tests', got '%s'", phase)
 	}
 
-	// Should show both parallel tasks
+	// Jobs should show both parallel tasks
 	if !contains(jobs, "Run Unit Tests") || !contains(jobs, "Run Integration Tests") {
-		t.Errorf("Expected both parallel tasks, got '%s'", jobs)
+		t.Errorf("Expected both parallel tasks in jobs, got '%s'", jobs)
 	}
 }
 
@@ -54,14 +55,15 @@ func TestExtractStageInfo_RunningWithActiveTasks(t *testing.T) {
 	stages := []interface{}{
 		map[string]interface{}{"name": "BUILD:", "status": "SUCCESS"},
 		map[string]interface{}{"name": "Compile", "status": "SUCCESS"},
-		map[string]interface{}{"name": "Test:", "status": "IN_PROGRESS"},
+		map[string]interface{}{"name": "Test:", "status": "SUCCESS"},
 		map[string]interface{}{"name": "Run Tests", "status": "IN_PROGRESS"},
 	}
 
 	phase, jobs := ExtractStageInfo(stages, models.StatusRunning)
 
-	if phase != "Test:" {
-		t.Errorf("Expected phase 'Test:', got '%s'", phase)
+	// Should show actual stage name, not phase label
+	if phase != "Run Tests" {
+		t.Errorf("Expected phase 'Run Tests', got '%s'", phase)
 	}
 
 	if jobs != "Run Tests" {

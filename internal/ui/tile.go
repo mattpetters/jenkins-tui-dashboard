@@ -32,8 +32,11 @@ func RenderTile(build models.Build, isSelected bool) string {
 		strings.Repeat(" ", tileWidth-4-len(prText)-padding))
 	lines = append(lines, prLine)
 	
-	// Branch name (centered, smaller text)
-	branchText := fmt.Sprintf("PR-%s", build.PRNumber)
+	// Git branch name (centered, smaller text)
+	branchText := build.GitBranch
+	if branchText == "" {
+		branchText = "PR-" + build.PRNumber // Fallback to PR number
+	}
 	if len(branchText) > tileWidth-4 {
 		branchText = branchText[:tileWidth-4]
 	}

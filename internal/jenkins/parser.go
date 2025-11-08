@@ -53,21 +53,23 @@ func ParseBuildResponse(data map[string]interface{}, prBranch, jobPath string) m
 	if stagesData, ok := data["stages"].([]interface{}); ok && len(stagesData) > 0 {
 		stage, jobName = ExtractStageInfo(stagesData, status)
 	} else {
-		// No stages data - use simple status-based text
+		// No stages data - show status
 		switch status {
 		case models.StatusSuccess:
 			stage, jobName = "Passed", "Passed"
 		case models.StatusFailure:
 			stage, jobName = "Failed", "Failed"
-		case models.StatusRunning:
-			stage, jobName = "Running", "In Progress"
 		default:
-			stage, jobName = "Pending", "Waiting"
+			stage, jobName = "Loading...", "Fetching data..."
 		}
 	}
+	
+	// Extract Git branch from actions if available
+	gitBranch := extractGitBranch(data)
 
 	return models.Build{
 		PRNumber:        prNumber,
+		GitBranch:       gitBranch,
 		Status:          status,
 		Stage:           stage,
 		JobName:         jobName,
@@ -120,10 +122,11 @@ func ExtractStageInfo(stages []interface{}, buildStatus models.BuildStatus) (pha
 		return "Failed", "Failed"
 	}
 
-	// For running/pending builds, show detailed stage info
+	// For running/pending builds, show actual stage names
 	var currentPhase string
 	var phaseForActiveTasks string
 	var activeTasks []string
+	var lastActiveStageName string
 
 	// Look for IN_PROGRESS stages
 	for _, stageData := range stages {
@@ -144,6 +147,7 @@ func ExtractStageInfo(stages []interface{}, buildStatus models.BuildStatus) (pha
 		// Track IN_PROGRESS tasks
 		if stageStatus == "IN_PROGRESS" {
 			activeTasks = append(activeTasks, stageName)
+			lastActiveStageName = stageName
 			// Remember the phase for the first active task
 			if phaseForActiveTasks == "" {
 				phaseForActiveTasks = currentPhase
@@ -151,23 +155,59 @@ func ExtractStageInfo(stages []interface{}, buildStatus models.BuildStatus) (pha
 		}
 	}
 
-	// Use the phase where active tasks were found
-	if phaseForActiveTasks != "" {
-		phase = phaseForActiveTasks
+	// For Stage: Show the actual stage name that's running, not the phase
+	if lastActiveStageName != "" {
+		phase = lastActiveStageName
 	} else if currentPhase != "" {
 		phase = currentPhase
 	} else {
-		phase = "Running"
+		phase = "Starting"
 	}
 
-	// Combine active tasks
-	if len(activeTasks) > 0 {
+	// For Job: Show all active tasks
+	if len(activeTasks) > 1 {
+		// Multiple tasks - show them all
 		jobs = strings.Join(activeTasks, ", ")
+	} else if len(activeTasks) == 1 {
+		// Single task - show it
+		jobs = activeTasks[0]
 	} else {
+		// No active tasks
 		jobs = "Starting..."
 	}
 
 	return phase, jobs
+}
+
+// extractGitBranch attempts to extract the Git branch name from Jenkins actions
+func extractGitBranch(data map[string]interface{}) string {
+	// Try to get from actions array
+	if actions, ok := data["actions"].([]interface{}); ok {
+		for _, action := range actions {
+			actionMap, ok := action.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			// Look for branch name in various possible fields
+			if branchName, ok := actionMap["lastBuiltRevision"].(map[string]interface{}); ok {
+				if branch, ok := branchName["branch"].([]interface{}); ok && len(branch) > 0 {
+					if branchMap, ok := branch[0].(map[string]interface{}); ok {
+						if name, ok := branchMap["name"].(string); ok {
+							// Extract short branch name (e.g., "origin/feature/auth" -> "feature/auth")
+							parts := strings.Split(name, "/")
+							if len(parts) > 1 {
+								return strings.Join(parts[1:], "/")
+							}
+							return name
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return "" // Will fallback to PR number in tile
 }
 
 // Helper function to extract current stage from stages array (legacy)
