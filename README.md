@@ -202,18 +202,6 @@ go test ./... -cover             # With coverage
 ✅ All features TDD'd
 ```
 
-## Why This Works (vs Textual)
-
-This project was originally built with Python/Textual and had persistent widget visibility issues. Complete rewrite with Bubbletea using strict TDD took ~3 hours and everything just works.
-
-| Aspect | Textual (Old) | Bubbletea (New) |
-|--------|---------------|-----------------|
-| Widget visibility | ❌ Never worked | ✅ Always works |
-| State management | Reactive watchers | Pure functions |
-| Layout updates | Manual refresh calls | Automatic |
-| Debugging | Widget tree inspection | Print state |
-| Development time | 20+ hours failing | 3 hours succeeding |
-
 ## License
 
 MIT
