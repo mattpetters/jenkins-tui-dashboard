@@ -1,4 +1,4 @@
-# Python
+# Python (legacy)
 __pycache__/
 *.py[cod]
 *$py.class
@@ -8,6 +8,14 @@ env/
 venv/
 ENV/
 .venv
+
+# Go
+jenkins-dash
+*.exe
+*.dll
+*.dylib
+*.test
+*.out
 
 # Environment variables
 .env
@@ -24,6 +32,8 @@ Thumbs.db
 
 # Project specific
 *.log
-*.json
-!package.json
+.jenkins-dash-builds.json
+
+# Compiled binaries
+/jenkins-dash
 
