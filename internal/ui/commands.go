@@ -33,17 +33,21 @@ func fetchBuildAndBranchCmd(client Client, prNumber string, index int) tea.Cmd {
 			return buildFetchedMsg{index: index, build: nil, err: fmt.Errorf("no build data returned")}
 		}
 		
-		// Fetch Git branch from GitHub if not already set
-		if build.GitBranch == "" {
+		// Fetch Git branch and PR check status from GitHub
+		if build.GitBranch == "" || build.PRCheckStatus == "" {
 			token := os.Getenv("GITHUB_TOKEN")
 			if token != "" {
-				gitBranch, err := github.FetchPRBranch(token, "identity-manage/account", prNumber)
-				if err != nil {
-					// Log error but don't fail - branch name is optional
-					build.ErrorMessage = fmt.Sprintf("GitHub branch fetch failed: %v", err)
-				} else if gitBranch != "" {
-					build.GitBranch = gitBranch
+				// Fetch Git branch
+				if build.GitBranch == "" {
+					gitBranch, err := github.FetchPRBranch(token, "identity-manage/account", prNumber)
+					if err == nil && gitBranch != "" {
+						build.GitBranch = gitBranch
+					}
 				}
+				
+				// Fetch PR check status
+				checkStatus := github.FetchPRCheckStatus(token, "identity-manage/account", prNumber)
+				build.PRCheckStatus = checkStatus.Summary
 			}
 		}
 		

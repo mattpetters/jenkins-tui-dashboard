@@ -108,6 +108,12 @@ func RenderTile(build models.Build, isSelected bool) string {
 		lines = append(lines, buildNumLine)
 	}
 
+	// PR check status (if available) - new row before bottom border
+	if build.PRCheckStatus != "" {
+		checkLine := fmt.Sprintf("│ PR: %-24s │", build.PRCheckStatus)
+		lines = append(lines, checkLine)
+	}
+	
 	// Bottom border
 	lines = append(lines, "└"+strings.Repeat("─", tileWidth-2)+"┘")
 

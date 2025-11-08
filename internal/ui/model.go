@@ -93,10 +93,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				completedTime := msg.build.FormatCompletedTime()
 				if completedTime != "" {
-					m.statusMessage = fmt.Sprintf("✓ PR-%s: %s (Stage: %s, Job: %s, Branch: %s, Completed: %s)", 
+					m.statusMessage = fmt.Sprintf("✓ PR-%s: %s (Stage: %s, Job: %s, Branch: %s, Completed: %s)",
 						msg.build.PRNumber, msg.build.Status.String(), msg.build.Stage, msg.build.JobName, msg.build.GitBranch, completedTime)
 				} else {
-					m.statusMessage = fmt.Sprintf("✓ PR-%s: %s (Stage: %s, Job: %s, Branch: %s)", 
+					m.statusMessage = fmt.Sprintf("✓ PR-%s: %s (Stage: %s, Job: %s, Branch: %s)",
 						msg.build.PRNumber, msg.build.Status.String(), msg.build.Stage, msg.build.JobName, msg.build.GitBranch)
 				}
 			}
