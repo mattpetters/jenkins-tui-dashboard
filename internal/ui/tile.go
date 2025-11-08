@@ -107,7 +107,11 @@ func RenderTile(build models.Build, isSelected bool) string {
 		Background(bgColor)
 
 	if isSelected {
-		style = style.Bold(true)
+		// Make selection VERY obvious with bold + border
+		style = style.
+			Bold(true).
+			Border(lipgloss.ThickBorder()).
+			BorderForeground(lipgloss.Color("#00FF00")) // Bright green border
 	}
 
 	return style.Render(content)
