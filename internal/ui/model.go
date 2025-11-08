@@ -16,8 +16,6 @@ type Model struct {
 	configPath     string
 	inputMode      bool
 	inputValue     string
-	branchInput    string // For entering Git branch name (optional)
-	inputStep      int    // 0=PR number, 1=branch name
 	statusMessage  string
 	termWidth      int
 	termHeight     int
@@ -150,9 +148,7 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "a":
 			m.inputMode = true
 			m.inputValue = ""
-			m.branchInput = ""
-			m.inputStep = 0
-			m.statusMessage = "Enter PR number and press Enter (or Enter twice for Git branch name)"
+			m.statusMessage = "Enter PR number and press Enter"
 			return m, nil
 		case "d":
 			// Delete selected build
@@ -202,31 +198,18 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.Type {
 	case tea.KeyEnter:
-		if m.inputStep == 0 {
-			// First step: PR number entered
-			if m.inputValue != "" {
-				m.inputStep = 1
-				m.statusMessage = "Git branch name (optional, or Enter to skip): e.g., IDLMP-2038-aggregate"
-				return m, nil
-			}
-		} else if m.inputStep == 1 {
-			// Second step: Git branch entered (or skipped)
-			// Create and add build
+		// Submit the PR number
+		if m.inputValue != "" {
+			// Create a loading build and add it to state
 			build := models.Build{
-				PRNumber:  m.inputValue,
-				GitBranch: m.branchInput, // User-provided or empty
-				Status:    models.StatusPending,
-				Stage:     "Loading...",
-				JobName:   "Fetching data...",
+				PRNumber: m.inputValue,
+				Status:   models.StatusPending,
+				Stage:    "Loading...",
+				JobName:  "Fetching data...",
 			}
 			m.state.AddBuild(build)
 			newIndex := len(m.state.Builds) - 1
-			
-			if m.branchInput != "" {
-				m.statusMessage = fmt.Sprintf("✓ Added PR-%s (%s) - Fetching build data...", m.inputValue, m.branchInput)
-			} else {
-				m.statusMessage = "✓ Added PR-" + m.inputValue + " - Fetching build data..."
-			}
+			m.statusMessage = "✓ Added PR-" + m.inputValue + " - Fetching build & branch data..."
 			
 			// Save state after adding
 			_ = m.saveState()
@@ -234,12 +217,10 @@ func (m Model) handleInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Reset input state
 			m.inputMode = false
 			m.inputValue = ""
-			m.branchInput = ""
-			m.inputStep = 0
 			
-			// Fetch real data if we have a Jenkins client
+			// Fetch Jenkins build data AND GitHub branch name
 			if m.jenkinsClient != nil {
-				return m, fetchBuildCmd(m.jenkinsClient, build.PRNumber, newIndex)
+				return m, fetchBuildAndBranchCmd(m.jenkinsClient, build.PRNumber, newIndex)
 			}
 			return m, nil
 		}
@@ -249,31 +230,17 @@ func (m Model) handleInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Cancel input
 		m.inputMode = false
 		m.inputValue = ""
-		m.branchInput = ""
-		m.inputStep = 0
 		m.statusMessage = "Press 'a' to add a PR build, arrow keys to navigate"
 		return m, nil
 
 	case tea.KeyBackspace:
-		if m.inputStep == 0 {
-			// Editing PR number
-			if len(m.inputValue) > 0 {
-				m.inputValue = m.inputValue[:len(m.inputValue)-1]
-			}
-		} else {
-			// Editing branch name
-			if len(m.branchInput) > 0 {
-				m.branchInput = m.branchInput[:len(m.branchInput)-1]
-			}
+		if len(m.inputValue) > 0 {
+			m.inputValue = m.inputValue[:len(m.inputValue)-1]
 		}
 		return m, nil
 	
 	case tea.KeyRunes:
-		if m.inputStep == 0 {
-			m.inputValue += string(msg.Runes)
-		} else {
-			m.branchInput += string(msg.Runes)
-		}
+		m.inputValue += string(msg.Runes)
 		return m, nil
 	}
 
@@ -329,15 +296,8 @@ func (m Model) View() string {
 			BorderForeground(lipgloss.Color("#00FFFF")).
 			Padding(0, 1)
 		
-		var prompt, value string
-		if m.inputStep == 0 {
-			prompt = "PR number: "
-			value = m.inputValue
-		} else {
-			prompt = "Git branch (optional): "
-			value = m.branchInput
-		}
-		inputDisplay := inputStyle.Render(prompt + value + "█")
+		prompt := "PR number: "
+		inputDisplay := inputStyle.Render(prompt + m.inputValue + "█")
 		sections = append(sections, inputDisplay)
 		sections = append(sections, "")
 	}

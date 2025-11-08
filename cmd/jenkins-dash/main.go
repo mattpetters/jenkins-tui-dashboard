@@ -17,19 +17,23 @@ func main() {
 
 	// Get Jenkins credentials (uses Basic Auth with username:token)
 	username := os.Getenv("JENKINS_USER")
-	token := os.Getenv("JENKINS_TOKEN")
-
-	if username == "" || token == "" {
+	jenkinsToken := os.Getenv("JENKINS_TOKEN")
+	githubToken := os.Getenv("GITHUB_TOKEN")
+	
+	if username == "" || jenkinsToken == "" {
 		fmt.Println("⚠️  Warning: JENKINS_USER or JENKINS_TOKEN not set in .env file")
 		fmt.Println("    Set both to fetch real Jenkins data")
-		fmt.Println("    Example .env:")
-		fmt.Println("      JENKINS_USER=mpetters")
-		fmt.Println("      JENKINS_TOKEN=your_api_token_here")
+		fmt.Println()
+	}
+	
+	if githubToken == "" {
+		fmt.Println("⚠️  Warning: GITHUB_TOKEN not set in .env file")
+		fmt.Println("    Set it to auto-fetch Git branch names")
 		fmt.Println()
 	}
 
 	// Create Jenkins client
-	jenkinsClient := jenkins.NewClient(username, token)
+	jenkinsClient := jenkins.NewClient(username, jenkinsToken)
 
 	// Get config file path
 	configPath := getConfigPath()
