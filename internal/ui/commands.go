@@ -24,13 +24,16 @@ func fetchBuildAndBranchCmd(client Client, prNumber string, index int) tea.Cmd {
 		branch := "PR-" + prNumber
 		build, err := client.GetBuildStatus(jobPath, branch, 0)
 		
-		if build != nil && build.GitBranch == "" {
-			// Fetch Git branch from GitHub API
-			// Using environment variable GITHUB_TOKEN if available
+		// Fetch Git branch from GitHub (non-blocking, best effort)
+		if build != nil {
+			// Try to fetch Git branch, but don't fail if it doesn't work
 			token := os.Getenv("GITHUB_TOKEN")
-			if gitBranch, err := github.FetchPRBranch(token, "identity-manage/account", prNumber); err == nil && gitBranch != "" {
-				build.GitBranch = gitBranch
+			if token != "" {
+				if gitBranch, _ := github.FetchPRBranch(token, "identity-manage/account", prNumber); gitBranch != "" {
+					build.GitBranch = gitBranch
+				}
 			}
+			// If GitHub fetch failed, GitBranch stays empty and tile shows "PR-3934" as fallback
 		}
 		
 		return buildFetchedMsg{

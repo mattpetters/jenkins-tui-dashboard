@@ -24,7 +24,7 @@ func FetchPRBranch(token, repo, prNumber string) (string, error) {
 		repo = defaultRepo
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: 3 * time.Second} // Short timeout
 	
 	// GitHub API: GET /repos/{owner}/{repo}/pulls/{pull_number}
 	url := fmt.Sprintf("%s/repos/intuit/%s/pulls/%s", githubAPIBase, repo, prNumber)

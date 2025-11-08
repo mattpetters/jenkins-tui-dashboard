@@ -114,25 +114,13 @@ func TestModel_Update_InputSubmit_ActuallyAddsBuild(t *testing.T) {
 		t.Fatalf("Input value should be '3859', got '%s'", m.inputValue)
 	}
 	
-	// Press Enter (step 1 - PR number done)
-	newModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	m = newModel.(Model)
-	
-	// Should still be in input mode (waiting for branch name)
-	if !m.inputMode {
-		t.Error("Should still be in input mode for branch name")
-	}
-	if m.inputStep != 1 {
-		t.Errorf("Should be on step 1 (branch), got %d", m.inputStep)
-	}
-	
-	// Press Enter again (skip branch name)
+	// Press Enter to submit
 	newModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = newModel.(Model)
 	
 	// CRITICAL: Build should now be in state
 	if len(m.state.Builds) != 1 {
-		t.Errorf("Expected 1 build after second Enter, got %d", len(m.state.Builds))
+		t.Errorf("Expected 1 build after Enter, got %d", len(m.state.Builds))
 	}
 	
 	if len(m.state.Builds) > 0 && m.state.Builds[0].PRNumber != "3859" {
@@ -141,7 +129,7 @@ func TestModel_Update_InputSubmit_ActuallyAddsBuild(t *testing.T) {
 	
 	// Should exit input mode
 	if m.inputMode {
-		t.Error("Should exit input mode after second Enter")
+		t.Error("Should exit input mode after Enter")
 	}
 }
 

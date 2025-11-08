@@ -84,9 +84,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.state.Builds[msg.index].Status = models.StatusError
 				m.state.Builds[msg.index].ErrorMessage = msg.err.Error()
 				m.statusMessage = fmt.Sprintf("✗ Error fetching PR-%s: %v", m.state.Builds[msg.index].PRNumber, msg.err)
-			} else {
+			} else if msg.build != nil {
 				m.state.Builds[msg.index] = *msg.build
-				m.statusMessage = fmt.Sprintf("✓ PR-%s: %s", msg.build.PRNumber, msg.build.Status.String())
+				m.statusMessage = fmt.Sprintf("✓ PR-%s: %s (Stage: %s, Job: %s)", 
+					msg.build.PRNumber, msg.build.Status.String(), msg.build.Stage, msg.build.JobName)
 			}
 			// Save state after update
 			_ = m.saveState()
