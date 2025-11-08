@@ -1,0 +1,49 @@
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║          JENKINS TUI DASHBOARD - READY TO USE!              ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+✅ All 57 tests passing
+✅ 66% code coverage
+✅ All keyboard shortcuts working
+✅ Virtual environment configured
+✅ Dependencies installed
+✅ Credentials configured
+
+┌─────────────────────────────────────────────────────────────┐
+│ TO RUN:                                                     │
+│                                                             │
+│   cd /Users/mpetters/code/jenkins-dash                      │
+│   ./run.sh                                                  │
+│                                                             │
+│ FIRST STEPS:                                                │
+│   1. Press 'a' to add a build                               │
+│   2. Enter '3859' for PR-3859                               │
+│   3. Press Enter                                            │
+│   4. Watch the tile auto-refresh every 10s!                 │
+│                                                             │
+│ KEYBOARD SHORTCUTS:                                         │
+│   a      - Add PR build                                     │
+│   e      - Edit selected build                              │
+│   d      - Delete selected build                            │
+│   Enter  - Open build in browser                            │
+│   p      - Open PR page in browser                          │
+│   ↑↓←→   - Navigate between tiles                           │
+│   Esc    - Cancel input                                     │
+│   q      - Quit                                             │
+└─────────────────────────────────────────────────────────────┘
+
+Features:
+  • Tiled grid layout (auto-adjusts to terminal size)
+  • Color-coded status (blinking blue=running, green=success, red=fail)
+  • Displays: PR number, stage, job, time, build number
+  • Auto-refresh every 10 seconds
+  • Quick navigation with arrow keys
+  • Open builds and PRs directly in browser
+
+Questions? See:
+  - QUICK_START.md  - Step-by-step usage guide
+  - TESTING.md      - Test documentation
+  - STATUS.md       - Implementation status
+  - README.md       - Full documentation
