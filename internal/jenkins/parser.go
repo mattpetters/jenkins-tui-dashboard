@@ -177,6 +177,7 @@ func ExtractStageInfo(stages []interface{}, buildStatus models.BuildStatus) (pha
 }
 
 // extractGitBranch attempts to extract the Git branch name from Jenkins actions
+// Filters out master/main branches since those are base branches, not PR branches
 func extractGitBranch(data map[string]interface{}) string {
 	// Try to get from actions array
 	if actions, ok := data["actions"].([]interface{}); ok {
@@ -193,10 +194,21 @@ func extractGitBranch(data map[string]interface{}) string {
 						if name, ok := branchMap["name"].(string); ok {
 							// Extract short branch name (e.g., "origin/feature/auth" -> "feature/auth")
 							parts := strings.Split(name, "/")
+							var shortName string
 							if len(parts) > 1 {
-								return strings.Join(parts[1:], "/")
+								shortName = strings.Join(parts[1:], "/")
+							} else {
+								shortName = name
 							}
-							return name
+							
+							// Filter out master/main branches - those are base branches, not PR branches
+							// We want the feature branch name from GitHub, not the base branch
+							if shortName == "master" || shortName == "main" || 
+							   shortName == "remotes/origin/master" || shortName == "remotes/origin/main" {
+								return "" // Return empty so GitHub branch is preferred
+							}
+							
+							return shortName
 						}
 					}
 				}
@@ -204,7 +216,7 @@ func extractGitBranch(data map[string]interface{}) string {
 		}
 	}
 
-	return "" // Will fallback to PR number in tile
+	return "" // Will fallback to GitHub branch or PR number in tile
 }
 
 // Helper function to extract current stage from stages array (legacy)
