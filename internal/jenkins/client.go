@@ -29,41 +29,57 @@ func NewClient(username, token string) *Client {
 }
 
 // GetBuildStatus fetches build status from Jenkins API
+// Makes TWO calls: /api/json for basic info, /wfapi/describe for stages
 func (c *Client) GetBuildStatus(jobPath, branch string, buildNum int) (*models.Build, error) {
-	// Use wfapi/describe endpoint for better pipeline stage data
-	url := BuildJenkinsURL(jobPath, branch, buildNum) + "/wfapi/describe"
-
-	// Create request
-	req, err := http.NewRequest("GET", url, nil)
+	baseURL := BuildJenkinsURL(jobPath, branch, buildNum)
+	
+	// Call 1: Get basic build info from standard API
+	basicData, err := c.fetchJSON(baseURL + "/api/json")
 	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
+		return nil, fmt.Errorf("fetching build info: %w", err)
 	}
 
-	// Add Basic Auth (Jenkins uses username:token, not Bearer)
+	// Call 2: Get stages from wfapi (best effort, don't fail if missing)
+	stagesData, _ := c.fetchJSON(baseURL + "/wfapi/describe")
+	
+	// Merge stages into basic data
+	if stagesData != nil {
+		if stages, ok := stagesData["stages"]; ok {
+			basicData["stages"] = stages
+		}
+	}
+
+	// Convert to Build struct
+	build := ParseBuildResponse(basicData, branch, jobPath)
+	return &build, nil
+}
+
+// fetchJSON is a helper to fetch and parse JSON from Jenkins
+func (c *Client) fetchJSON(url string) (map[string]interface{}, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	if c.username != "" && c.token != "" {
 		req.SetBasicAuth(c.username, c.token)
 	}
 	req.Header.Set("Accept", "application/json")
 
-	// Make request
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("making request: %w", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	// Check status code
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Jenkins API returned status %d for URL: %s", resp.StatusCode, url)
+		return nil, fmt.Errorf("status %d for URL: %s", resp.StatusCode, url)
 	}
 
-	// Parse JSON response
 	var data map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("parsing JSON: %w", err)
+		return nil, err
 	}
 
-	// Convert to Build struct
-	build := ParseBuildResponse(data, branch, jobPath)
-	return &build, nil
+	return data, nil
 }

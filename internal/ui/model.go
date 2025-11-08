@@ -105,7 +105,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmds []tea.Cmd
 			for i, build := range m.state.Builds {
 				if build.Status != models.StatusPending {
-					cmds = append(cmds, fetchBuildCmd(m.jenkinsClient, build.PRNumber, i))
+					// Pass existing Git branch to preserve it on refresh
+					cmds = append(cmds, fetchBuildCmd(m.jenkinsClient, build.PRNumber, i, build.GitBranch))
 				}
 			}
 			cmds = append(cmds, tickCmd())

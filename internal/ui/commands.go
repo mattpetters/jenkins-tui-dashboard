@@ -51,15 +51,18 @@ func fetchBuildAndBranchCmd(client Client, prNumber string, index int) tea.Cmd {
 	}
 }
 
-// fetchBuildCmd is used for refresh - preserves existing Git branch
-func fetchBuildCmd(client Client, prNumber string, index int) tea.Cmd {
+// fetchBuildCmd is used for refresh - MUST preserve existing Git branch
+func fetchBuildCmd(client Client, prNumber string, index int, existingGitBranch string) tea.Cmd {
 	return func() tea.Msg {
 		jobPath := jenkins.InferJobPath(prNumber)
 		branch := "PR-" + prNumber
 		build, err := client.GetBuildStatus(jobPath, branch, 0)
 		
-		// Don't re-fetch Git branch on refresh - it's saved in the persistence file
-		// The branch name doesn't change, so we keep the existing value
+		// Preserve the Git branch from persistence file
+		// Don't re-fetch on every refresh - it doesn't change
+		if build != nil && existingGitBranch != "" {
+			build.GitBranch = existingGitBranch
+		}
 		
 		return buildFetchedMsg{
 			index: index,
