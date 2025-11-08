@@ -53,14 +53,18 @@ func ParseBuildResponse(data map[string]interface{}, prBranch, jobPath string) m
 	if stagesData, ok := data["stages"].([]interface{}); ok && len(stagesData) > 0 {
 		stage, jobName = ExtractStageInfo(stagesData, status)
 	} else {
-		// No stages data - show status
+		// No stages data - show status-based text
 		switch status {
 		case models.StatusSuccess:
 			stage, jobName = "Passed", "Passed"
 		case models.StatusFailure:
 			stage, jobName = "Failed", "Failed"
+		case models.StatusRunning:
+			stage, jobName = "Running", "In Progress"
+		case models.StatusPending:
+			stage, jobName = "Pending", "Queued"
 		default:
-			stage, jobName = "Loading...", "Fetching data..."
+			stage, jobName = "Unknown", "Unknown"
 		}
 	}
 	
