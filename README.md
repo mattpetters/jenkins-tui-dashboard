@@ -53,7 +53,7 @@ go build -o jenkins-dash ./cmd/jenkins-dash
 
 ## Configuration
 
-Create a `.env` file in the project root (see `.env.example`):
+Create a `.env` file in the project root (see `env.example`):
 
 ### Required
 ```bash
