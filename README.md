@@ -53,12 +53,26 @@ go build -o jenkins-dash ./cmd/jenkins-dash
 
 ## Configuration
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root (see `.env.example`):
 
+### Required
 ```bash
 JENKINS_USER=your_username
 JENKINS_TOKEN=your_jenkins_api_token
-GITHUB_TOKEN=your_github_token  # Optional but recommended
+```
+
+### Optional (defaults to identity-manage/account project)
+```bash
+# GitHub integration (recommended for branch names and check status)
+GITHUB_TOKEN=your_github_token
+
+# Customize for your project
+JENKINS_JOB_PATH=your-org/job/your-project/job/your-job
+GITHUB_REPO=your-org/your-repo
+
+# Advanced (usually not needed)
+JENKINS_BASE_URL=https://build.intuit.com
+GITHUB_BASE_URL=https://github.intuit.com
 ```
 
 ### Getting Tokens
@@ -75,14 +89,13 @@ GITHUB_TOKEN=your_github_token  # Optional but recommended
 3. Select scopes: `repo`, `read:org`
 4. Copy the token
 
-### Customizing Job Path
+### Defaults
 
-Edit `internal/jenkins/url.go` to match your Jenkins job:
-
-```go
-const defaultJobPath = "your-org/job/your-project/job/your-job"
-const githubRepo = "your-org/your-repo"
-```
+If you don't set environment variables, the app uses:
+- **Jenkins Job**: `identity/job/identity-manage/job/account/job/account-eks`
+- **GitHub Repo**: `identity-manage/account`
+- **Jenkins URL**: `https://build.intuit.com`
+- **GitHub URL**: `https://github.intuit.com`
 
 ## Keyboard Controls
 

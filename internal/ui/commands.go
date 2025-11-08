@@ -37,16 +37,22 @@ func fetchBuildAndBranchCmd(client Client, prNumber string, index int) tea.Cmd {
 		if build.GitBranch == "" || build.PRCheckStatus == "" {
 			token := os.Getenv("GITHUB_TOKEN")
 			if token != "" {
+				// Get GitHub repo from env or use default
+				githubRepo := os.Getenv("GITHUB_REPO")
+				if githubRepo == "" {
+					githubRepo = "identity-manage/account"
+				}
+				
 				// Fetch Git branch
 				if build.GitBranch == "" {
-					gitBranch, err := github.FetchPRBranch(token, "identity-manage/account", prNumber)
+					gitBranch, err := github.FetchPRBranch(token, githubRepo, prNumber)
 					if err == nil && gitBranch != "" {
 						build.GitBranch = gitBranch
 					}
 				}
 				
 				// Fetch PR check status
-				checkStatus := github.FetchPRCheckStatus(token, "identity-manage/account", prNumber)
+				checkStatus := github.FetchPRCheckStatus(token, githubRepo, prNumber)
 				build.PRCheckStatus = checkStatus.Summary
 			}
 		}

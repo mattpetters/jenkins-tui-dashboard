@@ -2,21 +2,45 @@ package jenkins
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 )
 
+// Default configuration (can be overridden with environment variables)
 const (
-	// Updated to match your actual Jenkins job structure
-	defaultJobPath = "identity/job/identity-manage/job/account/job/account-eks"
-	jenkinsBaseURL = "https://build.intuit.com"
-	githubRepo     = "identity-manage/account"  // Intuit internal repo
-	githubBaseURL  = "https://github.intuit.com"  // Intuit GitHub
+	defaultJobPath     = "identity/job/identity-manage/job/account/job/account-eks"
+	defaultJenkinsURL  = "https://build.intuit.com"
+	defaultGitHubRepo  = "identity-manage/account"
+	defaultGitHubURL   = "https://github.intuit.com"
 )
 
+var (
+	jenkinsBaseURL string
+	githubRepo     string
+	githubBaseURL  string
+)
+
+func init() {
+	// Load from environment or use defaults
+	jenkinsBaseURL = getEnvOrDefault("JENKINS_BASE_URL", defaultJenkinsURL)
+	githubRepo = getEnvOrDefault("GITHUB_REPO", defaultGitHubRepo)
+	githubBaseURL = getEnvOrDefault("GITHUB_BASE_URL", defaultGitHubURL)
+}
+
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
 // InferJobPath returns the Jenkins job path for a given PR number
-// Currently returns a hardcoded path but could be made configurable
+// Reads from JENKINS_JOB_PATH environment variable or uses default
 func InferJobPath(prNumber string) string {
+	if jobPath := os.Getenv("JENKINS_JOB_PATH"); jobPath != "" {
+		return jobPath
+	}
 	return defaultJobPath
 }
 
