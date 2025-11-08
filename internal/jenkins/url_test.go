@@ -40,14 +40,14 @@ func TestBuildPRURL(t *testing.T) {
 		want     string
 	}{
 		{
-			name:     "Standard PR",
-			prNumber: "3859",
-			want:     "https://github.com/IntuitDeveloper/authentication-service/pull/3859",
+			name:     "Standard PR - Blue Ocean",
+			prNumber: "3934",
+			want:     "https://build.intuit.com/blue/organizations/jenkins/identity%2Fidentity-manage%2Faccount%2Faccount-eks/detail/PR-3934/",
 		},
 		{
-			name:     "Different PR",
+			name:     "Different PR - Blue Ocean",
 			prNumber: "1234",
-			want:     "https://github.com/IntuitDeveloper/authentication-service/pull/1234",
+			want:     "https://build.intuit.com/blue/organizations/jenkins/identity%2Fidentity-manage%2Faccount%2Faccount-eks/detail/PR-1234/",
 		},
 	}
 
