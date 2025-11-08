@@ -6,6 +6,9 @@ A beautiful terminal-based dashboard for monitoring Jenkins builds across multip
 ![Tests](https://img.shields.io/badge/tests-30%2B%20passing-success)
 ![Coverage](https://img.shields.io/badge/coverage-66--89%25-green)
 
+
+<img width="1470" height="540" alt="Screenshot 2025-11-08 at 8 29 42 AM" src="https://github.com/user-attachments/assets/d878b35e-f386-49da-a1aa-44d8204fdb35" />
+
 ## Features
 
 ### Core Functionality
