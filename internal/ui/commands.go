@@ -15,11 +15,16 @@ type buildFetchedMsg struct {
 }
 
 // fetchBuildCmd creates a command to fetch build data from Jenkins
+// Also fetches Git branch name from GitHub if available
 func fetchBuildCmd(client Client, prNumber string, index int) tea.Cmd {
 	return func() tea.Msg {
 		jobPath := jenkins.InferJobPath(prNumber)
 		branch := "PR-" + prNumber
 		build, err := client.GetBuildStatus(jobPath, branch, 0)
+		
+		// TODO: Fetch Git branch name from GitHub API and set build.GitBranch
+		// For now, Git branch comes from Jenkins API (might be "master" after merge)
+		
 		return buildFetchedMsg{
 			index: index,
 			build: build,

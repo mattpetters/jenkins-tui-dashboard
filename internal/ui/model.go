@@ -11,15 +11,17 @@ import (
 
 // Model represents the Bubbletea application state
 type Model struct {
-	state         *models.DashboardState
-	jenkinsClient Client
-	configPath    string
-	inputMode     bool
-	inputValue    string
-	statusMessage string
-	termWidth     int
-	termHeight    int
-	blinkState    bool
+	state          *models.DashboardState
+	jenkinsClient  Client
+	configPath     string
+	inputMode      bool
+	inputValue     string
+	branchInput    string // For entering Git branch name (optional)
+	inputStep      int    // 0=PR number, 1=branch name
+	statusMessage  string
+	termWidth      int
+	termHeight     int
+	blinkState     bool
 }
 
 // Client is an interface to avoid import cycle with jenkins package
@@ -148,7 +150,9 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "a":
 			m.inputMode = true
 			m.inputValue = ""
-			m.statusMessage = "Enter PR number and press Enter, or Esc to cancel"
+			m.branchInput = ""
+			m.inputStep = 0
+			m.statusMessage = "Enter PR number and press Enter (or Enter twice for Git branch name)"
 			return m, nil
 		case "d":
 			// Delete selected build
@@ -198,49 +202,78 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.Type {
 	case tea.KeyEnter:
-		// Submit the PR number
-		if m.inputValue != "" {
-			// Create a loading build and add it to state
+		if m.inputStep == 0 {
+			// First step: PR number entered
+			if m.inputValue != "" {
+				m.inputStep = 1
+				m.statusMessage = "Git branch name (optional, or Enter to skip): e.g., IDLMP-2038-aggregate"
+				return m, nil
+			}
+		} else if m.inputStep == 1 {
+			// Second step: Git branch entered (or skipped)
+			// Create and add build
 			build := models.Build{
-				PRNumber: m.inputValue,
-				Status:   models.StatusPending,
-				Stage:    "Loading...",
-				JobName:  "Fetching data...",
+				PRNumber:  m.inputValue,
+				GitBranch: m.branchInput, // User-provided or empty
+				Status:    models.StatusPending,
+				Stage:     "Loading...",
+				JobName:   "Fetching data...",
 			}
 			m.state.AddBuild(build)
 			newIndex := len(m.state.Builds) - 1
-			m.statusMessage = "✓ Added PR-" + m.inputValue + " - Fetching build data..."
-
+			
+			if m.branchInput != "" {
+				m.statusMessage = fmt.Sprintf("✓ Added PR-%s (%s) - Fetching build data...", m.inputValue, m.branchInput)
+			} else {
+				m.statusMessage = "✓ Added PR-" + m.inputValue + " - Fetching build data..."
+			}
+			
 			// Save state after adding
 			_ = m.saveState()
-
-			// Fetch real data if we have a Jenkins client
+			
+			// Reset input state
 			m.inputMode = false
 			m.inputValue = ""
+			m.branchInput = ""
+			m.inputStep = 0
+			
+			// Fetch real data if we have a Jenkins client
 			if m.jenkinsClient != nil {
 				return m, fetchBuildCmd(m.jenkinsClient, build.PRNumber, newIndex)
 			}
 			return m, nil
 		}
-		m.inputMode = false
-		m.inputValue = ""
 		return m, nil
 
 	case tea.KeyEsc:
 		// Cancel input
 		m.inputMode = false
 		m.inputValue = ""
+		m.branchInput = ""
+		m.inputStep = 0
 		m.statusMessage = "Press 'a' to add a PR build, arrow keys to navigate"
 		return m, nil
 
 	case tea.KeyBackspace:
-		if len(m.inputValue) > 0 {
-			m.inputValue = m.inputValue[:len(m.inputValue)-1]
+		if m.inputStep == 0 {
+			// Editing PR number
+			if len(m.inputValue) > 0 {
+				m.inputValue = m.inputValue[:len(m.inputValue)-1]
+			}
+		} else {
+			// Editing branch name
+			if len(m.branchInput) > 0 {
+				m.branchInput = m.branchInput[:len(m.branchInput)-1]
+			}
 		}
 		return m, nil
-
+	
 	case tea.KeyRunes:
-		m.inputValue += string(msg.Runes)
+		if m.inputStep == 0 {
+			m.inputValue += string(msg.Runes)
+		} else {
+			m.branchInput += string(msg.Runes)
+		}
 		return m, nil
 	}
 
@@ -295,9 +328,16 @@ func (m Model) View() string {
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#00FFFF")).
 			Padding(0, 1)
-
-		prompt := "Enter PR number: "
-		inputDisplay := inputStyle.Render(prompt + m.inputValue + "█")
+		
+		var prompt, value string
+		if m.inputStep == 0 {
+			prompt = "PR number: "
+			value = m.inputValue
+		} else {
+			prompt = "Git branch (optional): "
+			value = m.branchInput
+		}
+		inputDisplay := inputStyle.Render(prompt + value + "█")
 		sections = append(sections, inputDisplay)
 		sections = append(sections, "")
 	}
