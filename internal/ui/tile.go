@@ -31,6 +31,18 @@ func RenderTile(build models.Build, isSelected bool) string {
 		prText,
 		strings.Repeat(" ", tileWidth-4-len(prText)-padding))
 	lines = append(lines, prLine)
+	
+	// Branch name (centered, smaller text)
+	branchText := fmt.Sprintf("PR-%s", build.PRNumber)
+	if len(branchText) > tileWidth-4 {
+		branchText = branchText[:tileWidth-4]
+	}
+	branchPadding := (tileWidth - 4 - len(branchText)) / 2
+	branchLine := fmt.Sprintf("│ %s%s%s │",
+		strings.Repeat(" ", branchPadding),
+		branchText,
+		strings.Repeat(" ", tileWidth-4-len(branchText)-branchPadding))
+	lines = append(lines, branchLine)
 
 	// Separator
 	lines = append(lines, "├"+strings.Repeat("─", tileWidth-2)+"┤")

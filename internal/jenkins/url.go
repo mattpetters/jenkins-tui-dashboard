@@ -20,9 +20,12 @@ func InferJobPath(prNumber string) string {
 	return defaultJobPath
 }
 
-// BuildPRURL constructs the GitHub PR URL for the given PR number
+// BuildPRURL constructs the Blue Ocean PR URL for the given PR number
 func BuildPRURL(prNumber string) string {
-	return fmt.Sprintf("%s/%s/pull/%s", githubBaseURL, githubRepo, prNumber)
+	// Blue Ocean URL format: /blue/organizations/jenkins/{job-path}/detail/PR-{number}/{build}/pipeline
+	// For "view all builds" we can omit the build number
+	jobPathEncoded := strings.ReplaceAll(defaultJobPath, "/job/", "%2F")
+	return fmt.Sprintf("%s/blue/organizations/jenkins/%s/detail/PR-%s/", jenkinsBaseURL, jobPathEncoded, prNumber)
 }
 
 // BuildJenkinsURL constructs the full Jenkins build URL
