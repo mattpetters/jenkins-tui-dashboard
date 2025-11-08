@@ -85,11 +85,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.state.Builds[msg.index].ErrorMessage = msg.err.Error()
 				m.statusMessage = fmt.Sprintf("✗ Error fetching PR-%s: %v", m.state.Builds[msg.index].PRNumber, msg.err)
 			} else if msg.build != nil {
+				// Preserve Git branch if already set (from GitHub or user input)
+				existingGitBranch := m.state.Builds[msg.index].GitBranch
 				m.state.Builds[msg.index] = *msg.build
+				if msg.build.GitBranch == "" && existingGitBranch != "" {
+					m.state.Builds[msg.index].GitBranch = existingGitBranch
+				}
 				m.statusMessage = fmt.Sprintf("✓ PR-%s: %s (Stage: %s, Job: %s)", 
 					msg.build.PRNumber, msg.build.Status.String(), msg.build.Stage, msg.build.JobName)
 			}
-			// Save state after update
+			// Save state after update (Git branch persists)
 			_ = m.saveState()
 		}
 		return m, nil

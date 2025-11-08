@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -24,32 +25,41 @@ func fetchBuildAndBranchCmd(client Client, prNumber string, index int) tea.Cmd {
 		branch := "PR-" + prNumber
 		build, err := client.GetBuildStatus(jobPath, branch, 0)
 		
-		// Fetch Git branch from GitHub (non-blocking, best effort)
-		if build != nil {
-			// Try to fetch Git branch, but don't fail if it doesn't work
+		if err != nil {
+			return buildFetchedMsg{index: index, build: nil, err: err}
+		}
+		
+		if build == nil {
+			return buildFetchedMsg{index: index, build: nil, err: fmt.Errorf("no build data returned")}
+		}
+		
+		// Fetch Git branch from GitHub if not already set (best effort, non-blocking)
+		if build.GitBranch == "" {
 			token := os.Getenv("GITHUB_TOKEN")
 			if token != "" {
 				if gitBranch, _ := github.FetchPRBranch(token, "identity-manage/account", prNumber); gitBranch != "" {
 					build.GitBranch = gitBranch
 				}
 			}
-			// If GitHub fetch failed, GitBranch stays empty and tile shows "PR-3934" as fallback
 		}
 		
 		return buildFetchedMsg{
 			index: index,
 			build: build,
-			err:   err,
+			err:   nil,
 		}
 	}
 }
 
-// fetchBuildCmd is a simpler version for refresh (doesn't re-fetch Git branch)
+// fetchBuildCmd is used for refresh - preserves existing Git branch
 func fetchBuildCmd(client Client, prNumber string, index int) tea.Cmd {
 	return func() tea.Msg {
 		jobPath := jenkins.InferJobPath(prNumber)
 		branch := "PR-" + prNumber
 		build, err := client.GetBuildStatus(jobPath, branch, 0)
+		
+		// Don't re-fetch Git branch on refresh - it's saved in the persistence file
+		// The branch name doesn't change, so we keep the existing value
 		
 		return buildFetchedMsg{
 			index: index,

@@ -30,8 +30,8 @@ func NewClient(username, token string) *Client {
 
 // GetBuildStatus fetches build status from Jenkins API
 func (c *Client) GetBuildStatus(jobPath, branch string, buildNum int) (*models.Build, error) {
-	// Build API URL
-	url := BuildJenkinsURL(jobPath, branch, buildNum) + "/api/json"
+	// Use wfapi/describe endpoint for better pipeline stage data
+	url := BuildJenkinsURL(jobPath, branch, buildNum) + "/wfapi/describe"
 
 	// Create request
 	req, err := http.NewRequest("GET", url, nil)
