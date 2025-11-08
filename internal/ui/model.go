@@ -333,19 +333,24 @@ func timeTickCmd() tea.Cmd {
 func (m Model) View() string {
 	var sections []string
 
-	// Title/Header
+	// Title/Header with top margin
 	headerStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("#FFFFFF")).
-		Padding(0, 1)
+		Padding(1, 2).  // More padding: top/bottom=1, left/right=2
+		MarginTop(1).   // Space from top of screen
+		MarginLeft(2)   // Space from left edge
 	header := headerStyle.Render("🔨 Jenkins Build Dashboard")
 	sections = append(sections, header)
-	sections = append(sections, "")
+	sections = append(sections, "") // Extra line for breathing room
 
-	// Main grid
-	grid := RenderGrid(m.state.Builds, m.state.SelectedIndex, m.state.GridColumns, m.blinkState)
-	sections = append(sections, grid)
-	sections = append(sections, "")
+	// Main grid with left margin
+	gridContent := RenderGrid(m.state.Builds, m.state.SelectedIndex, m.state.GridColumns, m.blinkState)
+	gridWithMargin := lipgloss.NewStyle().
+		MarginLeft(2).  // Align with header
+		Render(gridContent)
+	sections = append(sections, gridWithMargin)
+	sections = append(sections, "") // Space before input/status
 
 	// Input field (if in input mode)
 	if m.inputMode {
@@ -360,17 +365,19 @@ func (m Model) View() string {
 		sections = append(sections, "")
 	}
 
-	// Status bar
+	// Status bar with left margin
 	statusStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#888888")).
-		Padding(0, 1)
+		Padding(0, 2).
+		MarginLeft(2)
 	statusBar := statusStyle.Render(m.statusMessage)
 	sections = append(sections, statusBar)
 
-	// Footer with key bindings
+	// Footer with key bindings and left margin
 	footerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#666666")).
-		Padding(0, 1)
+		Padding(0, 2).
+		MarginLeft(2)
 	footer := footerStyle.Render("a: Add PR | c: Clear Cache | d: Delete | r: Refresh | ↑↓←→: Navigate | enter: Open Build | p: Open PR | q: Quit")
 	sections = append(sections, footer)
 

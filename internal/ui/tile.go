@@ -130,7 +130,11 @@ func RenderTile(build models.Build, isSelected bool) string {
 		style = style.
 			Bold(true).
 			Border(lipgloss.ThickBorder()).
-			BorderForeground(lipgloss.Color("#00FF00")) // Bright green border
+			BorderForeground(lipgloss.Color("#00FF00")). // Bright green border
+			Margin(0, 1) // Add side margins for selected tiles
+	} else {
+		// Subtle margin for unselected tiles
+		style = style.Margin(0, 1)
 	}
 
 	return style.Render(content)

@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	tileWidthWithPadding = 38 // 36 + 2 for spacing
+	tileWidthWithPadding = 40 // 36 + 4 for more spacing between tiles
 	minColumns           = 1
 	maxColumns           = 4
 )
@@ -42,13 +42,13 @@ func RenderGrid(builds []models.Build, selectedIndex int, columns int, blinkStat
 
 		// Start new row after filling columns
 		if len(currentRow) == columns || i == len(builds)-1 {
-			// Join tiles in this row
+			// Join tiles in this row with spacing
 			rowStr := lipgloss.JoinHorizontal(lipgloss.Top, currentRow...)
 			rows = append(rows, rowStr)
 			currentRow = []string{}
 		}
 	}
 
-	// Join all rows vertically
+	// Join all rows vertically with spacing between rows
 	return lipgloss.JoinVertical(lipgloss.Left, rows...)
 }
