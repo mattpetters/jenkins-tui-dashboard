@@ -81,7 +81,7 @@ func (b Build) FormatDuration() string {
 	return fmt.Sprintf("%ds", seconds)
 }
 
-// FormatCompletedTime returns the completion time for finished builds
+// FormatCompletedTime returns the completion time for finished builds in PT
 func (b Build) FormatCompletedTime() string {
 	if b.IsRunning() || b.Status == StatusPending {
 		return "" // Not completed yet
@@ -90,6 +90,31 @@ func (b Build) FormatCompletedTime() string {
 	// Calculate end time: start + duration
 	endTime := time.Unix(b.Timestamp+int64(b.DurationSeconds), 0)
 	
-	// Format as time only (e.g., "14:23:45")
-	return endTime.Format("15:04:05")
+	// Convert to Pacific Time
+	pt, err := time.LoadLocation("America/Los_Angeles")
+	if err != nil {
+		// Fallback to local time if PT not available
+		pt = time.Local
+	}
+	endTimePT := endTime.In(pt)
+	
+	// Format as "11/7 10:45pm"
+	month := int(endTimePT.Month())
+	day := endTimePT.Day()
+	hour := endTimePT.Hour()
+	minute := endTimePT.Minute()
+	
+	ampm := "am"
+	displayHour := hour
+	if hour >= 12 {
+		ampm = "pm"
+		if hour > 12 {
+			displayHour = hour - 12
+		}
+	}
+	if displayHour == 0 {
+		displayHour = 12
+	}
+	
+	return fmt.Sprintf("%d/%d %d:%02d%s", month, day, displayHour, minute, ampm)
 }

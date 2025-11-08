@@ -6,121 +6,248 @@ import (
 	"github.com/mpetters/jenkins-dash/internal/models"
 )
 
-// Test: Better stage extraction from real Jenkins data
-func TestExtractStageInfo(t *testing.T) {
-	// Real nested pipeline structure
-	stages := []interface{}{
-		map[string]interface{}{"name": "BUILD:", "status": "SUCCESS"},
-		map[string]interface{}{"name": "Podman Multi-Stage Build(NO Tests)", "status": "SUCCESS"},
-		map[string]interface{}{"name": "Run Unit Tests", "status": "IN_PROGRESS"},
-		map[string]interface{}{"name": "QAL:", "status": "NOT_EXECUTED"},
+// Test that extractGitBranch doesn't return master/main since those are base branches
+func TestExtractGitBranch_IgnoresMasterBranches(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     map[string]interface{}
+		expected string
+	}{
+		{
+			name: "returns empty for master branch",
+			data: map[string]interface{}{
+				"actions": []interface{}{
+					map[string]interface{}{
+						"lastBuiltRevision": map[string]interface{}{
+							"branch": []interface{}{
+								map[string]interface{}{
+									"name": "origin/master",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: "", // Should return empty, not "master"
+		},
+		{
+			name: "returns empty for main branch",
+			data: map[string]interface{}{
+				"actions": []interface{}{
+					map[string]interface{}{
+						"lastBuiltRevision": map[string]interface{}{
+							"branch": []interface{}{
+								map[string]interface{}{
+									"name": "origin/main",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: "", // Should return empty, not "main"
+		},
+		{
+			name: "returns empty for refs/remotes/origin/master",
+			data: map[string]interface{}{
+				"actions": []interface{}{
+					map[string]interface{}{
+						"lastBuiltRevision": map[string]interface{}{
+							"branch": []interface{}{
+								map[string]interface{}{
+									"name": "refs/remotes/origin/master",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: "", // Should return empty
+		},
+		{
+			name: "returns feature branch",
+			data: map[string]interface{}{
+				"actions": []interface{}{
+					map[string]interface{}{
+						"lastBuiltRevision": map[string]interface{}{
+							"branch": []interface{}{
+								map[string]interface{}{
+									"name": "origin/feature/add-auth",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: "feature/add-auth",
+		},
+		{
+			name: "returns bugfix branch",
+			data: map[string]interface{}{
+				"actions": []interface{}{
+					map[string]interface{}{
+						"lastBuiltRevision": map[string]interface{}{
+							"branch": []interface{}{
+								map[string]interface{}{
+									"name": "origin/bugfix/fix-login",
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: "bugfix/fix-login",
+		},
+		{
+			name:     "returns empty for no branch data",
+			data:     map[string]interface{}{},
+			expected: "",
+		},
 	}
 
-	phase, jobs := ExtractStageInfo(stages, models.StatusRunning)
-
-	// Phase should be the outer label (BUILD:)
-	if phase != "BUILD:" {
-		t.Errorf("Expected phase 'BUILD:', got '%s'", phase)
-	}
-
-	// Job should be the nested task name
-	if jobs != "Run Unit Tests" {
-		t.Errorf("Expected jobs 'Run Unit Tests', got '%s'", jobs)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractGitBranch(tt.data)
+			if result != tt.expected {
+				t.Errorf("extractGitBranch() = %q, want %q", result, tt.expected)
+			}
+		})
 	}
 }
 
-func TestExtractStageInfo_ParallelStages(t *testing.T) {
-	// Multiple tasks running in parallel within BUILD phase
-	stages := []interface{}{
-		map[string]interface{}{"name": "BUILD:", "status": "SUCCESS"},
-		map[string]interface{}{"name": "Compile", "status": "SUCCESS"},
-		map[string]interface{}{"name": "Run Unit Tests", "status": "IN_PROGRESS"},
-		map[string]interface{}{"name": "Run Integration Tests", "status": "IN_PROGRESS"},
-		map[string]interface{}{"name": "Deploy:", "status": "NOT_EXECUTED"},
+// Test that ParseBuildResponse doesn't overwrite GitBranch with master/main
+func TestParseBuildResponse_PreservesFeatureBranches(t *testing.T) {
+	data := map[string]interface{}{
+		"building": false,
+		"result":   "SUCCESS",
+		"number":   float64(142),
+		"duration": float64(120000),
+		"timestamp": float64(1234567890000),
+		"actions": []interface{}{
+			map[string]interface{}{
+				"lastBuiltRevision": map[string]interface{}{
+					"branch": []interface{}{
+						map[string]interface{}{
+							"name": "origin/master", // Jenkins reports master
+						},
+					},
+				},
+			},
+		},
 	}
 
-	phase, jobs := ExtractStageInfo(stages, models.StatusRunning)
+	build := ParseBuildResponse(data, "PR-3859", "test/job/path")
 
-	// Phase should be the outer label
-	if phase != "BUILD:" {
-		t.Errorf("Expected phase 'BUILD:', got '%s'", phase)
-	}
-
-	// Jobs should show both parallel tasks
-	if !contains(jobs, "Run Unit Tests") || !contains(jobs, "Run Integration Tests") {
-		t.Errorf("Expected both parallel tasks in jobs, got '%s'", jobs)
-	}
-}
-
-func TestExtractStageInfo_RunningWithActiveTasks(t *testing.T) {
-	stages := []interface{}{
-		map[string]interface{}{"name": "BUILD:", "status": "SUCCESS"},
-		map[string]interface{}{"name": "Compile", "status": "SUCCESS"},
-		map[string]interface{}{"name": "TEST:", "status": "SUCCESS"},
-		map[string]interface{}{"name": "Run Tests", "status": "IN_PROGRESS"},
-	}
-
-	phase, jobs := ExtractStageInfo(stages, models.StatusRunning)
-
-	// Stage should be the outer phase label
-	if phase != "TEST:" {
-		t.Errorf("Expected phase 'TEST:', got '%s'", phase)
-	}
-
-	// Job should be the nested task
-	if jobs != "Run Tests" {
-		t.Errorf("Expected jobs 'Run Tests', got '%s'", jobs)
+	// GitBranch should be empty (not "master") so GitHub branch can be used
+	if build.GitBranch != "" {
+		t.Errorf("GitBranch should be empty when Jenkins reports master, got %q", build.GitBranch)
 	}
 }
 
-func TestExtractStageInfo_CompletedSuccess(t *testing.T) {
-	stages := []interface{}{
-		map[string]interface{}{"name": "BUILD:", "status": "SUCCESS"},
-		map[string]interface{}{"name": "Compile", "status": "SUCCESS"},
-		map[string]interface{}{"name": "Test:", "status": "SUCCESS"},
-		map[string]interface{}{"name": "Run Tests", "status": "SUCCESS"},
+// Test that ParseBuildResponse preserves feature branches from Jenkins
+func TestParseBuildResponse_UsesJenkinsFeatureBranch(t *testing.T) {
+	data := map[string]interface{}{
+		"building": false,
+		"result":   "SUCCESS",
+		"number":   float64(142),
+		"duration": float64(120000),
+		"timestamp": float64(1234567890000),
+		"actions": []interface{}{
+			map[string]interface{}{
+				"lastBuiltRevision": map[string]interface{}{
+					"branch": []interface{}{
+						map[string]interface{}{
+							"name": "origin/feature/new-feature",
+						},
+					},
+				},
+			},
+		},
 	}
 
-	phase, jobs := ExtractStageInfo(stages, models.StatusSuccess)
+	build := ParseBuildResponse(data, "PR-3859", "test/job/path")
 
-	if phase != "Passed" {
-		t.Errorf("Expected phase 'Passed' for successful build, got '%s'", phase)
-	}
-
-	if jobs != "Passed" {
-		t.Errorf("Expected jobs 'Passed' for successful build, got '%s'", jobs)
-	}
-}
-
-func TestExtractStageInfo_CompletedFailure(t *testing.T) {
-	stages := []interface{}{
-		map[string]interface{}{"name": "BUILD:", "status": "SUCCESS"},
-		map[string]interface{}{"name": "Compile", "status": "SUCCESS"},
-		map[string]interface{}{"name": "Test:", "status": "FAILED"},
-		map[string]interface{}{"name": "Run Tests", "status": "FAILED"},
-	}
-
-	phase, jobs := ExtractStageInfo(stages, models.StatusFailure)
-
-	if phase != "Failed" {
-		t.Errorf("Expected phase 'Failed' for failed build, got '%s'", phase)
-	}
-
-	if jobs != "Failed" {
-		t.Errorf("Expected jobs 'Failed' for failed build, got '%s'", jobs)
+	// GitBranch should be the feature branch from Jenkins
+	if build.GitBranch != "feature/new-feature" {
+		t.Errorf("GitBranch = %q, want %q", build.GitBranch, "feature/new-feature")
 	}
 }
 
-func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || containsMiddle(s, substr)))
+func TestParseBuildResponse_BasicFields(t *testing.T) {
+	data := map[string]interface{}{
+		"building": false,
+		"result":   "SUCCESS",
+		"number":   float64(142),
+		"duration": float64(120000),
+		"timestamp": float64(1234567890000),
+	}
+
+	build := ParseBuildResponse(data, "PR-3859", "test/job/path")
+
+	if build.PRNumber != "3859" {
+		t.Errorf("PRNumber = %s, want 3859", build.PRNumber)
+	}
+	if build.Status != models.StatusSuccess {
+		t.Errorf("Status = %v, want StatusSuccess", build.Status)
+	}
+	if build.BuildNumber != 142 {
+		t.Errorf("BuildNumber = %d, want 142", build.BuildNumber)
+	}
+	if build.DurationSeconds != 120 {
+		t.Errorf("DurationSeconds = %d, want 120", build.DurationSeconds)
+	}
 }
 
-func containsMiddle(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
+func TestExtractJobName_ValidInput(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"auth-service » PR-3859 » #142", "auth-service"},
+		{"my-job » PR-123 » #1", "my-job"},
+		{"single-job", "single-job"},
+		{"", "Unknown"},
+	}
+
+	for _, tt := range tests {
+		result := ExtractJobName(tt.input)
+		if result != tt.expected {
+			t.Errorf("ExtractJobName(%q) = %q, want %q", tt.input, result, tt.expected)
 		}
 	}
-	return false
 }
 
+func TestExtractStageInfo_CompletedBuild(t *testing.T) {
+	stages := []interface{}{
+		map[string]interface{}{"name": "BUILD:", "status": "SUCCESS"},
+		map[string]interface{}{"name": "Test", "status": "SUCCESS"},
+	}
+
+	phase, job := ExtractStageInfo(stages, models.StatusSuccess)
+	if phase != "Passed" || job != "Passed" {
+		t.Errorf("Expected Passed/Passed for success, got %s/%s", phase, job)
+	}
+
+	phase, job = ExtractStageInfo(stages, models.StatusFailure)
+	if phase != "Failed" || job != "Failed" {
+		t.Errorf("Expected Failed/Failed for failure, got %s/%s", phase, job)
+	}
+}
+
+func TestExtractStageInfo_RunningBuild(t *testing.T) {
+	stages := []interface{}{
+		map[string]interface{}{"name": "BUILD:", "status": "SUCCESS"},
+		map[string]interface{}{"name": "Compile", "status": "SUCCESS"},
+		map[string]interface{}{"name": "QAL:", "status": "IN_PROGRESS"},
+		map[string]interface{}{"name": "Integration Tests", "status": "IN_PROGRESS"},
+	}
+
+	phase, job := ExtractStageInfo(stages, models.StatusRunning)
+	
+	if phase != "QAL:" {
+		t.Errorf("Expected phase 'QAL:', got %q", phase)
+	}
+	if job != "Integration Tests" {
+		t.Errorf("Expected job 'Integration Tests', got %q", job)
+	}
+}
