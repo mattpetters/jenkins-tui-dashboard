@@ -13,16 +13,28 @@ A terminal-based dashboard for monitoring Jenkins builds by PR number.
 
 ## Installation
 
+✅ **Already set up!** The virtual environment and dependencies are installed.
+
+If you need to reinstall:
 ```bash
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate  # On macOS/Linux
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
 ## Configuration
 
-Copy `.env.example` to `.env` and update with your credentials:
+✅ **Already configured!** Your `.env` file is set up with Jenkins credentials.
 
+If you need to reconfigure:
 ```bash
 cp .env.example .env
+# Then edit .env with your credentials
 ```
 
 ## Usage
@@ -77,4 +89,27 @@ Start with PR-3859:
 - **Real-time updates**: Each tile refreshes every 10 seconds
 - **Interactive navigation**: Arrow keys to move between tiles
 - **Quick actions**: Open builds and PRs directly from the dashboard
+
+## Testing
+
+Run the test suite:
+
+```bash
+# Run all tests
+./run_tests.sh
+
+# Or manually
+source venv/bin/activate
+pytest tests/ -v
+
+# With coverage report
+pytest tests/ -v --cov=src --cov-report=html
+```
+
+The test suite includes:
+- Unit tests for data models (`test_models.py`)
+- URL builder tests (`test_url_builder.py`)
+- Jenkins client tests (`test_jenkins_client.py`)
+- Dashboard component tests (`test_dashboard.py`)
+- Build tile component tests (`test_build_tile.py`)
 
