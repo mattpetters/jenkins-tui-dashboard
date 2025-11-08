@@ -1,46 +1,87 @@
-# Jenkins Build Dashboard
+# Jenkins Build Dashboard 🔨
 
 A beautiful terminal-based dashboard for monitoring Jenkins builds across multiple PRs, built with Bubbletea and strict TDD.
 
 ![Jenkins Dashboard](https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat&logo=go)
-![Tests](https://img.shields.io/badge/tests-29%2B%20passing-success)
+![Tests](https://img.shields.io/badge/tests-30%2B%20passing-success)
 ![Coverage](https://img.shields.io/badge/coverage-66--89%25-green)
 
 ## Features
 
-- 🎨 **Beautiful pastel colors** - Easy on the eyes, status at a glance
-- 🔄 **Auto-refresh** - Updates every 10 seconds
+### Core Functionality
+- 🎨 **Beautiful pastel colors** - Soft green/red/blue/yellow, easy on the eyes
+- 🔄 **Auto-refresh** - Updates every 10 seconds automatically
+- ⚡ **Manual refresh** - Press 'r' to refresh immediately
+- 🧹 **Clear cache** - Press 'c' to clear and refetch everything
 - ⏱️ **Live time** - Running builds show elapsed time updating every second
-- 💾 **Persistent** - Saves builds to `~/.jenkins-dash-builds.json`
-- 🌐 **Browser integration** - Open builds and PRs with a keypress
-- ✅ **Always visible** - No widget lifecycle issues
+- 💾 **Persistent** - Auto-saves to `~/.jenkins-dash-builds.json`
+- 🎯 **Clear selection** - Bright green border on selected tile
+- 🌐 **Browser integration** - Blue Ocean and GitHub integration
 
-## Quick Start
+### Jenkins Integration
+- ✅ Dual API calls (standard + wfapi for pipeline stages)
+- ✅ Basic Auth with username:token
+- ✅ Real-time pipeline stage tracking
+- ✅ Parallel stage detection
+- ✅ Completion timestamps in Pacific Time
+
+### GitHub Integration
+- ✅ Auto-fetches Git branch names (e.g., "IDLMP-2038-aggregate")
+- ✅ Shows PR check status (e.g., "5/8 checks", "all passed")
+- ✅ Direct links to PRs and commits
+
+## Requirements
+
+- **Go 1.24+** (automatically managed by go.mod)
+- **Terminal with Unicode support** (for box drawing characters)
+- **Jenkins credentials** (username + API token)
+- **GitHub token** (optional, for branch names and check status)
+
+## Installation
 
 ```bash
+# Clone the repository
+git clone https://github.intuit.com/mpetters/jenkins-tui-dashboard.git
+cd jenkins-tui-dashboard
+
 # Build
 go build -o jenkins-dash ./cmd/jenkins-dash
 
-# Run
-./jenkins-dash
-
-# Or use the script
+# Or use the build script
 ./run.sh
 ```
 
 ## Configuration
 
-Create a `.env` file:
+Create a `.env` file in the project root:
 
 ```bash
 JENKINS_USER=your_username
-JENKINS_TOKEN=your_api_token
+JENKINS_TOKEN=your_jenkins_api_token
+GITHUB_TOKEN=your_github_token  # Optional but recommended
 ```
 
-Update the Jenkins job path in `internal/jenkins/url.go` if needed:
+### Getting Tokens
+
+**Jenkins API Token:**
+1. Log into Jenkins
+2. Click your name → Configure
+3. API Token → Add new Token
+4. Copy the generated token
+
+**GitHub Token:**
+1. Go to https://github.intuit.com/settings/tokens
+2. Generate new token (classic)
+3. Select scopes: `repo`, `read:org`
+4. Copy the token
+
+### Customizing Job Path
+
+Edit `internal/jenkins/url.go` to match your Jenkins job:
 
 ```go
-const defaultJobPath = "identity/job/identity-manage/job/account/job/account-eks"
+const defaultJobPath = "your-org/job/your-project/job/your-job"
+const githubRepo = "your-org/your-repo"
 ```
 
 ## Keyboard Controls
@@ -48,25 +89,42 @@ const defaultJobPath = "identity/job/identity-manage/job/account/job/account-eks
 | Key | Action |
 |-----|--------|
 | `a` | Add new PR build |
+| `c` | Clear cache & refetch all data |
 | `d` | Delete selected build |
+| `r` | Refresh all builds now |
 | `↑↓←→` | Navigate between builds |
-| `Enter` | Open build in Jenkins browser |
-| `p` | Open PR in GitHub browser |
+| `Enter` | Open build in Blue Ocean pipeline view |
+| `p` | Open PR in GitHub |
 | `q` | Quit |
 
-## Display Logic
+## Display Format
 
-### Completed Builds
-- **Success** (Green): Stage: "Passed", Job: "Passed"
-- **Failure** (Red): Stage: "Failed", Job: "Failed"
+### Tile Layout
+```
+┌──────────────────────────────┐
+│          PR-3934             │  ← PR number
+│    IDLMP-2038-aggregate      │  ← Git branch from GitHub
+├──────────────────────────────┤
+│ Stage: BUILD:                │  ← Pipeline phase
+│ Job: Run Unit Tests          │  ← Actual Jenkins task
+│ Time: 32m 15s                │  ← Duration (live for running)
+│ 11/7 10:45pm         #263    │  ← Completion time (PT) + Build #
+│ PR: 5/8 checks               │  ← GitHub check status
+└──────────────────────────────┘
+```
 
-### Running Builds (Blue, blinking)
-- **Stage**: Current phase (e.g., "BUILD:", "TEST:")
-- **Job**: Active tasks (e.g., "Run Unit Tests, Run Integration Tests")
+### Status Colors
+- 🟢 **Green (Passed)**: Build succeeded
+- 🔴 **Red (Failed)**: Build failed
+- 🔵 **Blue (Running)**: Build in progress (blinks)
+- 🟡 **Yellow (Pending)**: Loading data
 
-### Pending Builds (Yellow)
-- **Stage**: "Loading..."
-- **Job**: "Fetching data..."
+### Stage & Job Logic
+- **Completed builds**: Simple "Passed" or "Failed"
+- **Running builds**: Actual pipeline stages from Jenkins
+  - Stage: Outer phase (e.g., "BUILD:", "QAL:", "E2E EAST:")
+  - Job: Nested task (e.g., "Podman Multi-Stage Build", "Run Unit Tests")
+  - Parallel stages: Multiple tasks shown with commas
 
 ## Architecture
 
@@ -101,29 +159,52 @@ persistence:  75% coverage
 ui:           56% coverage
 ```
 
+## API Integration
+
+### Jenkins
+- Fetches from standard `/api/json` endpoint (basic build info)
+- Fetches from `/wfapi/describe` endpoint (pipeline stages)
+- Merges data for complete picture
+- Uses Basic Auth (username:token)
+
+### GitHub
+- Fetches branch names from PR API
+- Fetches check run status
+- Uses Bearer token authentication
+- Caches results in persistence file
+
+## Development
+
+### Run Tests
+```bash
+go test ./...                    # All tests
+go test ./... -v                 # Verbose
+go test ./... -cover             # With coverage
+```
+
+### Test Coverage
+```
+✅ 30+ tests, all passing
+✅ 66-89% code coverage
+✅ All features TDD'd
+```
+
 ## Why This Works (vs Textual)
 
-| Aspect | Textual | Bubbletea |
-|--------|---------|-----------|
+This project was originally built with Python/Textual and had persistent widget visibility issues. Complete rewrite with Bubbletea using strict TDD took ~3 hours and everything just works.
+
+| Aspect | Textual (Old) | Bubbletea (New) |
+|--------|---------------|-----------------|
 | Widget visibility | ❌ Never worked | ✅ Always works |
 | State management | Reactive watchers | Pure functions |
 | Layout updates | Manual refresh calls | Automatic |
 | Debugging | Widget tree inspection | Print state |
-| Development | 20+ hours failing | 3 hours succeeding |
-
-## Built with TDD
-
-Every feature was:
-1. **Tested first** (RED)
-2. **Implemented** (GREEN)
-3. **Verified** (All tests pass)
-
-Result: 29+ tests, zero bugs, production ready.
+| Development time | 20+ hours failing | 3 hours succeeding |
 
 ## License
 
 MIT
 
-## Credits
+## Author
 
-Built by rewriting a broken Textual app using strict Test-Driven Development with Bubbletea.
+Built with strict Test-Driven Development using Bubbletea, Lipgloss, and Go.
