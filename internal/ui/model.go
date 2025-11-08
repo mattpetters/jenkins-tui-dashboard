@@ -172,6 +172,19 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, openURLCmd(build.PRURL)
 			}
 			return m, nil
+		case "r":
+			// Manual refresh all builds
+			if m.jenkinsClient != nil {
+				var cmds []tea.Cmd
+				for i, build := range m.state.Builds {
+					if build.Status != models.StatusPending {
+						cmds = append(cmds, fetchBuildCmd(m.jenkinsClient, build.PRNumber, i, build.GitBranch))
+					}
+				}
+				m.statusMessage = "Refreshing all builds..."
+				return m, tea.Batch(cmds...)
+			}
+			return m, nil
 		}
 
 	case tea.KeyEnter:
@@ -320,7 +333,7 @@ func (m Model) View() string {
 	footerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#666666")).
 		Padding(0, 1)
-	footer := footerStyle.Render("a: Add PR | d: Delete | ↑↓←→: Navigate | enter: Open Build | p: Open PR | q: Quit")
+	footer := footerStyle.Render("a: Add PR | d: Delete | r: Refresh | ↑↓←→: Navigate | enter: Open Build | p: Open PR | q: Quit")
 	sections = append(sections, footer)
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)

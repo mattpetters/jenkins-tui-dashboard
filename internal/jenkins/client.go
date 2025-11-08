@@ -32,7 +32,7 @@ func NewClient(username, token string) *Client {
 // Makes TWO calls: /api/json for basic info, /wfapi/describe for stages
 func (c *Client) GetBuildStatus(jobPath, branch string, buildNum int) (*models.Build, error) {
 	baseURL := BuildJenkinsURL(jobPath, branch, buildNum)
-	
+
 	// Call 1: Get basic build info from standard API
 	basicData, err := c.fetchJSON(baseURL + "/api/json")
 	if err != nil {
@@ -41,7 +41,7 @@ func (c *Client) GetBuildStatus(jobPath, branch string, buildNum int) (*models.B
 
 	// Call 2: Get stages from wfapi (best effort, don't fail if missing)
 	stagesData, _ := c.fetchJSON(baseURL + "/wfapi/describe")
-	
+
 	// Merge stages into basic data
 	if stagesData != nil {
 		if stages, ok := stagesData["stages"]; ok {
