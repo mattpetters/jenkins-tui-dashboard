@@ -19,15 +19,20 @@ class JenkinsDashboardApp(App):
         background: $background;
     }
     
+    #main-dashboard {
+        width: 100%;
+        height: 100%;
+    }
+    
     #dashboard-container {
         width: 100%;
         height: 100%;
-        padding: 1;
+        layout: vertical;
     }
     
     #build-grid {
         width: 100%;
-        height: 1fr;
+        height: auto;
         grid-size-columns: 3;
         grid-gutter: 1 2;
         padding: 1;
@@ -35,11 +40,12 @@ class JenkinsDashboardApp(App):
     
     #status-bar {
         width: 100%;
-        height: 1;
+        height: 3;
         padding: 1;
-        background: $surface;
+        background: $panel;
         color: $text;
         text-align: center;
+        dock: bottom;
     }
     
     BuildTile {
@@ -47,25 +53,14 @@ class JenkinsDashboardApp(App):
         height: 10;
         min-width: 34;
         min-height: 10;
-        padding: 0;
-        margin: 0;
-    }
-    
-    BuildTile:focus {
-        border: thick $accent;
-    }
-    
-    Input {
-        width: 50%;
-        margin: 1;
-        height: 3;
-        dock: top;
+        content-align: center middle;
     }
     
     #pr-input {
-        width: 50%;
-        margin: 2;
+        width: 60%;
         height: 3;
+        margin: 1 2;
+        border: tall $primary;
     }
     """
     
