@@ -8,31 +8,32 @@ import (
 
 // Test: Better stage extraction from real Jenkins data
 func TestExtractStageInfo(t *testing.T) {
-	// Real data structure from Jenkins
+	// Real nested pipeline structure
 	stages := []interface{}{
 		map[string]interface{}{"name": "BUILD:", "status": "SUCCESS"},
-		map[string]interface{}{"name": "Run Unit Tests", "status": "SUCCESS"},
-		map[string]interface{}{"name": "Run Integration Tests", "status": "IN_PROGRESS"},
+		map[string]interface{}{"name": "Podman Multi-Stage Build(NO Tests)", "status": "SUCCESS"},
+		map[string]interface{}{"name": "Run Unit Tests", "status": "IN_PROGRESS"},
 		map[string]interface{}{"name": "QAL:", "status": "NOT_EXECUTED"},
 	}
 
 	phase, jobs := ExtractStageInfo(stages, models.StatusRunning)
 
-	// Phase should be the actual running stage name (not the phase label)
-	if phase != "Run Integration Tests" {
-		t.Errorf("Expected phase 'Run Integration Tests', got '%s'", phase)
+	// Phase should be the outer label (BUILD:)
+	if phase != "BUILD:" {
+		t.Errorf("Expected phase 'BUILD:', got '%s'", phase)
 	}
 
-	// Jobs should be the same as phase for single task
-	if jobs != "Run Integration Tests" {
-		t.Errorf("Expected jobs 'Run Integration Tests', got '%s'", jobs)
+	// Job should be the nested task name
+	if jobs != "Run Unit Tests" {
+		t.Errorf("Expected jobs 'Run Unit Tests', got '%s'", jobs)
 	}
 }
 
 func TestExtractStageInfo_ParallelStages(t *testing.T) {
-	// Multiple tasks running in parallel
+	// Multiple tasks running in parallel within BUILD phase
 	stages := []interface{}{
-		map[string]interface{}{"name": "Test:", "status": "SUCCESS"},
+		map[string]interface{}{"name": "BUILD:", "status": "SUCCESS"},
+		map[string]interface{}{"name": "Compile", "status": "SUCCESS"},
 		map[string]interface{}{"name": "Run Unit Tests", "status": "IN_PROGRESS"},
 		map[string]interface{}{"name": "Run Integration Tests", "status": "IN_PROGRESS"},
 		map[string]interface{}{"name": "Deploy:", "status": "NOT_EXECUTED"},
@@ -40,9 +41,9 @@ func TestExtractStageInfo_ParallelStages(t *testing.T) {
 
 	phase, jobs := ExtractStageInfo(stages, models.StatusRunning)
 
-	// Phase shows the last active stage name
-	if phase != "Run Integration Tests" {
-		t.Errorf("Expected phase 'Run Integration Tests', got '%s'", phase)
+	// Phase should be the outer label
+	if phase != "BUILD:" {
+		t.Errorf("Expected phase 'BUILD:', got '%s'", phase)
 	}
 
 	// Jobs should show both parallel tasks
@@ -55,17 +56,18 @@ func TestExtractStageInfo_RunningWithActiveTasks(t *testing.T) {
 	stages := []interface{}{
 		map[string]interface{}{"name": "BUILD:", "status": "SUCCESS"},
 		map[string]interface{}{"name": "Compile", "status": "SUCCESS"},
-		map[string]interface{}{"name": "Test:", "status": "SUCCESS"},
+		map[string]interface{}{"name": "TEST:", "status": "SUCCESS"},
 		map[string]interface{}{"name": "Run Tests", "status": "IN_PROGRESS"},
 	}
 
 	phase, jobs := ExtractStageInfo(stages, models.StatusRunning)
 
-	// Should show actual stage name, not phase label
-	if phase != "Run Tests" {
-		t.Errorf("Expected phase 'Run Tests', got '%s'", phase)
+	// Stage should be the outer phase label
+	if phase != "TEST:" {
+		t.Errorf("Expected phase 'TEST:', got '%s'", phase)
 	}
 
+	// Job should be the nested task
 	if jobs != "Run Tests" {
 		t.Errorf("Expected jobs 'Run Tests', got '%s'", jobs)
 	}

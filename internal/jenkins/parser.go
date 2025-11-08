@@ -106,8 +106,8 @@ func getFloat(data map[string]interface{}, key string) float64 {
 }
 
 // ExtractStageInfo extracts phase and job information from stages
-// Phase = high-level label (e.g., "BUILD:", "TEST:")
-// Jobs = actual tasks (e.g., "Run unit tests, Run integration tests")
+// Stage = outer phase label (e.g., "BUILD:", "QAL:")
+// Job = nested task name (e.g., "Podman Multi-Stage Build(NO Tests)")
 // For completed builds, returns simple "Passed"/"Failed"
 func ExtractStageInfo(stages []interface{}, buildStatus models.BuildStatus) (phase string, jobs string) {
 	if len(stages) == 0 {
@@ -122,13 +122,11 @@ func ExtractStageInfo(stages []interface{}, buildStatus models.BuildStatus) (pha
 		return "Failed", "Failed"
 	}
 
-	// For running/pending builds, show actual stage names
-	var currentPhase string
-	var phaseForActiveTasks string
-	var activeTasks []string
-	var lastActiveStageName string
+	// For running/pending builds, find the nested structure
+	var currentPhase string      // Last "LABEL:" seen
+	var phaseForActiveTasks string // Phase label where active tasks are
+	var activeTasks []string      // Tasks that are IN_PROGRESS
 
-	// Look for IN_PROGRESS stages
 	for _, stageData := range stages {
 		stageMap, ok := stageData.(map[string]interface{})
 		if !ok {
@@ -138,41 +136,34 @@ func ExtractStageInfo(stages []interface{}, buildStatus models.BuildStatus) (pha
 		stageName, _ := stageMap["name"].(string)
 		stageStatus, _ := stageMap["status"].(string)
 
-		// Phase labels end with ":"
+		// Phase labels end with ":" (e.g., "BUILD:", "QAL:")
 		if len(stageName) > 0 && stageName[len(stageName)-1] == ':' {
 			currentPhase = stageName
 			continue
 		}
 
-		// Track IN_PROGRESS tasks
+		// Track IN_PROGRESS tasks and remember which phase they belong to
 		if stageStatus == "IN_PROGRESS" {
 			activeTasks = append(activeTasks, stageName)
-			lastActiveStageName = stageName
-			// Remember the phase for the first active task
 			if phaseForActiveTasks == "" {
-				phaseForActiveTasks = currentPhase
+				phaseForActiveTasks = currentPhase // Remember the phase label
 			}
 		}
 	}
 
-	// For Stage: Show the actual stage name that's running, not the phase
-	if lastActiveStageName != "" {
-		phase = lastActiveStageName
+	// Stage = the outer phase label (BUILD:, QAL:, etc.)
+	if phaseForActiveTasks != "" {
+		phase = phaseForActiveTasks
 	} else if currentPhase != "" {
 		phase = currentPhase
 	} else {
 		phase = "Starting"
 	}
 
-	// For Job: Show all active tasks
-	if len(activeTasks) > 1 {
-		// Multiple tasks - show them all
+	// Job = the nested task name(s)
+	if len(activeTasks) > 0 {
 		jobs = strings.Join(activeTasks, ", ")
-	} else if len(activeTasks) == 1 {
-		// Single task - show it
-		jobs = activeTasks[0]
 	} else {
-		// No active tasks
 		jobs = "Starting..."
 	}
 
