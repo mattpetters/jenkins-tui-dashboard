@@ -11,15 +11,15 @@ import (
 
 // Model represents the Bubbletea application state
 type Model struct {
-	state          *models.DashboardState
-	jenkinsClient  Client
-	configPath     string
-	inputMode      bool
-	inputValue     string
-	statusMessage  string
-	termWidth      int
-	termHeight     int
-	blinkState     bool
+	state         *models.DashboardState
+	jenkinsClient Client
+	configPath    string
+	inputMode     bool
+	inputValue    string
+	statusMessage string
+	termWidth     int
+	termHeight    int
+	blinkState    bool
 }
 
 // Client is an interface to avoid import cycle with jenkins package
@@ -91,8 +91,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if msg.build.GitBranch == "" && existingGitBranch != "" {
 					m.state.Builds[msg.index].GitBranch = existingGitBranch
 				}
-				m.statusMessage = fmt.Sprintf("✓ PR-%s: %s (Stage: %s, Job: %s)", 
-					msg.build.PRNumber, msg.build.Status.String(), msg.build.Stage, msg.build.JobName)
+				m.statusMessage = fmt.Sprintf("✓ PR-%s: %s (Stage: %s, Job: %s, Branch: %s)",
+					msg.build.PRNumber, msg.build.Status.String(), msg.build.Stage, msg.build.JobName, msg.build.GitBranch)
 			}
 			// Save state after update (Git branch persists)
 			_ = m.saveState()
@@ -193,10 +193,10 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				for i, build := range m.state.Builds {
 					prNumbers[i] = build.PRNumber
 				}
-				
+
 				// Clear all builds
 				m.state.Builds = []models.Build{}
-				
+
 				// Re-add with fresh fetches (will get new GitHub branches)
 				var cmds []tea.Cmd
 				for i, prNum := range prNumbers {
@@ -211,7 +211,7 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					// Fetch with GitHub branch update
 					cmds = append(cmds, fetchBuildAndBranchCmd(m.jenkinsClient, prNum, i))
 				}
-				
+
 				m.statusMessage = fmt.Sprintf("Cleared cache, refetching %d build(s)...", len(prNumbers))
 				_ = m.saveState() // Save cleared state
 				return m, tea.Batch(cmds...)
@@ -262,14 +262,14 @@ func (m Model) handleInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.state.AddBuild(build)
 			newIndex := len(m.state.Builds) - 1
 			m.statusMessage = "✓ Added PR-" + m.inputValue + " - Fetching build & branch data..."
-			
+
 			// Save state after adding
 			_ = m.saveState()
-			
+
 			// Reset input state
 			m.inputMode = false
 			m.inputValue = ""
-			
+
 			// Fetch Jenkins build data AND GitHub branch name
 			if m.jenkinsClient != nil {
 				return m, fetchBuildAndBranchCmd(m.jenkinsClient, build.PRNumber, newIndex)
@@ -290,7 +290,7 @@ func (m Model) handleInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.inputValue = m.inputValue[:len(m.inputValue)-1]
 		}
 		return m, nil
-	
+
 	case tea.KeyRunes:
 		m.inputValue += string(msg.Runes)
 		return m, nil
@@ -347,7 +347,7 @@ func (m Model) View() string {
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#00FFFF")).
 			Padding(0, 1)
-		
+
 		prompt := "PR number: "
 		inputDisplay := inputStyle.Render(prompt + m.inputValue + "█")
 		sections = append(sections, inputDisplay)

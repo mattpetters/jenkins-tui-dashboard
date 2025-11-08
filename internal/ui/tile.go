@@ -85,15 +85,28 @@ func RenderTile(build models.Build, isSelected bool) string {
 	timeLine := fmt.Sprintf("│ Time: %-20s │", durationText)
 	lines = append(lines, timeLine)
 
-	// Build number (bottom right)
+	// Bottom line: Completion time (left) and Build number (right)
 	buildNumText := fmt.Sprintf("#%d", build.BuildNumber)
 	if build.BuildNumber == 0 {
 		buildNumText = "..."
 	}
-	buildNumLine := fmt.Sprintf("│ %s%s │",
-		strings.Repeat(" ", tileWidth-4-len(buildNumText)),
-		buildNumText)
-	lines = append(lines, buildNumLine)
+	
+	completedTime := build.FormatCompletedTime()
+	if completedTime != "" {
+		// Show completion time on left, build number on right
+		spaceBetween := tileWidth - 4 - len(completedTime) - len(buildNumText)
+		bottomLine := fmt.Sprintf("│ %s%s%s │",
+			completedTime,
+			strings.Repeat(" ", spaceBetween),
+			buildNumText)
+		lines = append(lines, bottomLine)
+	} else {
+		// Running/pending - just build number on right
+		buildNumLine := fmt.Sprintf("│ %s%s │",
+			strings.Repeat(" ", tileWidth-4-len(buildNumText)),
+			buildNumText)
+		lines = append(lines, buildNumLine)
+	}
 
 	// Bottom border
 	lines = append(lines, "└"+strings.Repeat("─", tileWidth-2)+"┘")

@@ -80,3 +80,16 @@ func (b Build) FormatDuration() string {
 	}
 	return fmt.Sprintf("%ds", seconds)
 }
+
+// FormatCompletedTime returns the completion time for finished builds
+func (b Build) FormatCompletedTime() string {
+	if b.IsRunning() || b.Status == StatusPending {
+		return "" // Not completed yet
+	}
+	
+	// Calculate end time: start + duration
+	endTime := time.Unix(b.Timestamp+int64(b.DurationSeconds), 0)
+	
+	// Format as time only (e.g., "14:23:45")
+	return endTime.Format("15:04:05")
+}
