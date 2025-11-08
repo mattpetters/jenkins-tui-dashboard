@@ -185,6 +185,38 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, tea.Batch(cmds...)
 			}
 			return m, nil
+		case "c":
+			// Clear cache and refetch everything (including GitHub branches)
+			if m.jenkinsClient != nil && len(m.state.Builds) > 0 {
+				// Save PR numbers before clearing
+				prNumbers := make([]string, len(m.state.Builds))
+				for i, build := range m.state.Builds {
+					prNumbers[i] = build.PRNumber
+				}
+				
+				// Clear all builds
+				m.state.Builds = []models.Build{}
+				
+				// Re-add with fresh fetches (will get new GitHub branches)
+				var cmds []tea.Cmd
+				for i, prNum := range prNumbers {
+					// Create fresh loading build
+					build := models.Build{
+						PRNumber: prNum,
+						Status:   models.StatusPending,
+						Stage:    "Loading...",
+						JobName:  "Fetching data...",
+					}
+					m.state.AddBuild(build)
+					// Fetch with GitHub branch update
+					cmds = append(cmds, fetchBuildAndBranchCmd(m.jenkinsClient, prNum, i))
+				}
+				
+				m.statusMessage = fmt.Sprintf("Cleared cache, refetching %d build(s)...", len(prNumbers))
+				_ = m.saveState() // Save cleared state
+				return m, tea.Batch(cmds...)
+			}
+			return m, nil
 		}
 
 	case tea.KeyEnter:
@@ -333,7 +365,7 @@ func (m Model) View() string {
 	footerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#666666")).
 		Padding(0, 1)
-	footer := footerStyle.Render("a: Add PR | d: Delete | r: Refresh | ↑↓←→: Navigate | enter: Open Build | p: Open PR | q: Quit")
+	footer := footerStyle.Render("a: Add PR | c: Clear Cache | d: Delete | r: Refresh | ↑↓←→: Navigate | enter: Open Build | p: Open PR | q: Quit")
 	sections = append(sections, footer)
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
