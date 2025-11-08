@@ -7,7 +7,75 @@ A beautiful terminal-based dashboard for monitoring Jenkins builds across multip
 ![Coverage](https://img.shields.io/badge/coverage-66--89%25-green)
 
 
-<img width="1470" height="540" alt="Screenshot 2025-11-08 at 8 29 42 AM" src="https://github.com/user-attachments/assets/d878b35e-f386-49da-a1aa-44d8204fdb35" />
+<img width="1470" height="540" alt="Screenshot 2025-11-08 at 8 29 42 AM" src="https://github.com/user-attachments/assets/d878b35e-f386-49da-a1aa-44d8204fdb35" />
+
+## Quickstart
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.intuit.com/mpetters/jenkins-tui-dashboard.git
+cd jenkins-tui-dashboard
+
+# Build
+go build -o jenkins-dash ./cmd/jenkins-dash
+```
+
+### Configuration
+
+Copy the example environment file and configure your credentials:
+
+```bash
+cp env.example .env
+# Edit .env with your credentials (see below)
+```
+
+**Required Environment Variables:**
+```bash
+JENKINS_USER=your_username        # Your Jenkins username
+JENKINS_TOKEN=your_api_token      # Jenkins API token
+```
+
+**Optional Environment Variables:**
+```bash
+# GitHub integration (recommended for branch names, PR author, and check status)
+GITHUB_TOKEN=your_github_token
+
+# Project customization (defaults to identity-manage/account)
+# JENKINS_JOB_PATH=identity/job/identity-manage/job/account/job/account-eks
+# GITHUB_REPO=identity-manage/account
+
+# API endpoints (usually don't need to change)
+# JENKINS_BASE_URL=https://build.intuit.com
+# GITHUB_BASE_URL=https://github.intuit.com
+```
+
+See [env.example](env.example) for a complete configuration template with all options.
+
+### Getting API Tokens
+
+**Jenkins API Token:**
+1. Log into Jenkins at https://build.intuit.com
+2. Click your name (top right) → Configure
+3. API Token → Add new Token
+4. Copy the generated token to `JENKINS_TOKEN`
+
+**GitHub Token:**
+1. Go to https://github.intuit.com/settings/tokens
+2. Generate new token (classic)
+3. Select scopes: `repo`, `read:org`
+4. Copy the token to `GITHUB_TOKEN`
+
+### Run
+
+```bash
+./jenkins-dash
+
+# Add a PR by pressing 'a' and entering the PR number
+# Navigate with arrow keys
+# Press 'q' to quit
+```
 
 ## Features
 
@@ -30,75 +98,10 @@ A beautiful terminal-based dashboard for monitoring Jenkins builds across multip
 
 ### GitHub Integration
 - ✅ Auto-fetches Git branch names (e.g., "IDLMP-2038-aggregate")
+- ✅ Shows PR author below branch name
 - ✅ Shows PR check status (e.g., "5/8 checks", "all passed")
+- ✅ Displays repository name (e.g., "identity-manage/account")
 - ✅ Direct links to PRs and commits
-
-## Requirements
-
-- **Go 1.24+** (automatically managed by go.mod)
-- **Terminal with Unicode support** (for box drawing characters)
-- **Jenkins credentials** (username + API token)
-- **GitHub token** (optional, for branch names and check status)
-
-## Installation
-
-```bash
-# Clone the repository
-git clone https://github.intuit.com/mpetters/jenkins-tui-dashboard.git
-cd jenkins-tui-dashboard
-
-# Build
-go build -o jenkins-dash ./cmd/jenkins-dash
-
-# Or use the build script
-./run.sh
-```
-
-## Configuration
-
-Create a `.env` file in the project root (see `env.example`):
-
-### Required
-```bash
-JENKINS_USER=your_username
-JENKINS_TOKEN=your_jenkins_api_token
-```
-
-### Optional (defaults to identity-manage/account project)
-```bash
-# GitHub integration (recommended for branch names and check status)
-GITHUB_TOKEN=your_github_token
-
-# Customize for your project
-JENKINS_JOB_PATH=your-org/job/your-project/job/your-job
-GITHUB_REPO=your-org/your-repo
-
-# Advanced (usually not needed)
-JENKINS_BASE_URL=https://build.intuit.com
-GITHUB_BASE_URL=https://github.intuit.com
-```
-
-### Getting Tokens
-
-**Jenkins API Token:**
-1. Log into Jenkins
-2. Click your name → Configure
-3. API Token → Add new Token
-4. Copy the generated token
-
-**GitHub Token:**
-1. Go to https://github.intuit.com/settings/tokens
-2. Generate new token (classic)
-3. Select scopes: `repo`, `read:org`
-4. Copy the token
-
-### Defaults
-
-If you don't set environment variables, the app uses:
-- **Jenkins Job**: `identity/job/identity-manage/job/account/job/account-eks`
-- **GitHub Repo**: `identity-manage/account`
-- **Jenkins URL**: `https://build.intuit.com`
-- **GitHub URL**: `https://github.intuit.com`
 
 ## Keyboard Controls
 
@@ -120,12 +123,14 @@ If you don't set environment variables, the app uses:
 ┌──────────────────────────────┐
 │          PR-3934             │  ← PR number
 │    IDLMP-2038-aggregate      │  ← Git branch from GitHub
+│        john.doe              │  ← PR author from GitHub
 ├──────────────────────────────┤
 │ Stage: BUILD:                │  ← Pipeline phase
 │ Job: Run Unit Tests          │  ← Actual Jenkins task
 │ Time: 32m 15s                │  ← Duration (live for running)
 │ 11/7 10:45pm         #263    │  ← Completion time (PT) + Build #
 │ PR: 5/8 checks               │  ← GitHub check status
+│       identity-manage/account│  ← Repository name
 └──────────────────────────────┘
 ```
 
@@ -149,30 +154,13 @@ jenkins-dash/
 ├── cmd/jenkins-dash/     # Main entry point
 ├── internal/
 │   ├── browser/         # URL opening
-│   ├── jenkins/         # API client & parsers
+│   ├── github/          # GitHub API client
+│   ├── jenkins/         # Jenkins API client & parsers
 │   ├── models/          # Data structures
 │   ├── persistence/     # Save/load builds
 │   ├── testdata/        # Test fixtures
 │   └── ui/              # Bubbletea UI components
 └── go.mod
-```
-
-## Development
-
-### Run Tests
-```bash
-go test ./...                    # All tests
-go test ./... -v                 # Verbose
-go test ./... -cover             # With coverage
-```
-
-### Test Coverage
-```
-browser:      67% coverage
-jenkins:      66% coverage  
-models:       89% coverage
-persistence:  75% coverage
-ui:           56% coverage
 ```
 
 ## API Integration
@@ -184,12 +172,16 @@ ui:           56% coverage
 - Uses Basic Auth (username:token)
 
 ### GitHub
-- Fetches branch names from PR API
-- Fetches check run status
+- Fetches PR details (branch name, author, repository)
+- Fetches check run and commit status
 - Uses Bearer token authentication
 - Caches results in persistence file
 
 ## Development
+
+### Requirements
+- **Go 1.24+** (automatically managed by go.mod)
+- **Terminal with Unicode support** (for box drawing characters)
 
 ### Run Tests
 ```bash
@@ -200,10 +192,18 @@ go test ./... -cover             # With coverage
 
 ### Test Coverage
 ```
-✅ 30+ tests, all passing
-✅ 66-89% code coverage
-✅ All features TDD'd
+✅ 70+ tests, all passing
+✅ 59-86% code coverage across packages
+✅ All features developed using TDD
 ```
+
+**Package Coverage:**
+- browser:      67%
+- github:       86%
+- jenkins:      67%
+- models:       68%
+- persistence:  75%
+- ui:           59%
 
 ## License
 
