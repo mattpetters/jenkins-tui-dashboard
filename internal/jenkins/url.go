@@ -28,14 +28,26 @@ func BuildPRURL(prNumber string) string {
 	return fmt.Sprintf("%s/blue/organizations/jenkins/%s/detail/PR-%s/", jenkinsBaseURL, jobPathEncoded, prNumber)
 }
 
-// BuildJenkinsURL constructs the full Jenkins build URL
-// If buildNumber is 0, uses "lastBuild" instead
+// BuildJenkinsURL constructs the full Jenkins build URL (classic view)
+// Used for API calls only
 func BuildJenkinsURL(jobPath, branch string, buildNumber int) string {
 	buildRef := "lastBuild"
 	if buildNumber > 0 {
 		buildRef = fmt.Sprintf("%d", buildNumber)
 	}
 	return fmt.Sprintf("%s/%s/job/%s/%s", jenkinsBaseURL, jobPath, branch, buildRef)
+}
+
+// BuildBlueOceanBuildURL constructs the Blue Ocean pipeline view URL for a specific build
+func BuildBlueOceanBuildURL(jobPath, branch string, buildNumber int) string {
+	// Blue Ocean format: /blue/organizations/jenkins/{job-path}/detail/{branch}/{build}/pipeline
+	jobPathEncoded := strings.ReplaceAll(jobPath, "/job/", "%2F")
+	buildRef := fmt.Sprintf("%d", buildNumber)
+	if buildNumber == 0 {
+		buildRef = "lastBuild"
+	}
+	return fmt.Sprintf("%s/blue/organizations/jenkins/%s/detail/%s/%s/pipeline", 
+		jenkinsBaseURL, jobPathEncoded, branch, buildRef)
 }
 
 // ParsePRNumber parses and validates a PR number from user input

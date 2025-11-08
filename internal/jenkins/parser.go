@@ -31,7 +31,6 @@ func ParseBuildResponse(data map[string]interface{}, prBranch, jobPath string) m
 
 	// Extract basic fields
 	buildNumber := int(getFloat(data, "number"))
-	buildURL, _ := data["url"].(string)
 
 	// Calculate duration
 	durationMs := getFloat(data, "duration")
@@ -71,6 +70,9 @@ func ParseBuildResponse(data map[string]interface{}, prBranch, jobPath string) m
 	// Extract Git branch from actions if available
 	gitBranch := extractGitBranch(data)
 
+	// Build Blue Ocean URL for better pipeline visualization
+	blueOceanURL := BuildBlueOceanBuildURL(jobPath, prBranch, buildNumber)
+	
 	return models.Build{
 		PRNumber:        prNumber,
 		GitBranch:       gitBranch,
@@ -79,7 +81,7 @@ func ParseBuildResponse(data map[string]interface{}, prBranch, jobPath string) m
 		JobName:         jobName,
 		JobPath:         jobPath,
 		BuildNumber:     buildNumber,
-		BuildURL:        buildURL,
+		BuildURL:        blueOceanURL, // Use Blue Ocean URL instead of classic
 		PRURL:           BuildPRURL(prNumber),
 		DurationSeconds: durationSeconds,
 		Timestamp:       timestamp,
