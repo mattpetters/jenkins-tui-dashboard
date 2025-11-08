@@ -24,39 +24,47 @@ func fetchBuildAndBranchCmd(client Client, prNumber string, index int) tea.Cmd {
 		jobPath := jenkins.InferJobPath(prNumber)
 		branch := "PR-" + prNumber
 		build, err := client.GetBuildStatus(jobPath, branch, 0)
-		
+
 		if err != nil {
 			return buildFetchedMsg{index: index, build: nil, err: err}
 		}
-		
+
 		if build == nil {
 			return buildFetchedMsg{index: index, build: nil, err: fmt.Errorf("no build data returned")}
 		}
-		
+
 		// Fetch Git branch and PR check status from GitHub
 		if build.GitBranch == "" || build.PRCheckStatus == "" {
 			token := os.Getenv("GITHUB_TOKEN")
 			if token != "" {
-				// Get GitHub repo from env or use default
-				githubRepo := os.Getenv("GITHUB_REPO")
-				if githubRepo == "" {
-					githubRepo = "identity-manage/account"
-				}
-				
-				// Fetch Git branch
-				if build.GitBranch == "" {
-					gitBranch, err := github.FetchPRBranch(token, githubRepo, prNumber)
-					if err == nil && gitBranch != "" {
-						build.GitBranch = gitBranch
+			// Get GitHub repo from env or use default
+			githubRepo := os.Getenv("GITHUB_REPO")
+			if githubRepo == "" {
+				githubRepo = "identity-manage/account"
+			}
+
+			// Fetch PR information (branch, author, repository)
+			if build.GitBranch == "" || build.PRAuthor == "" || build.Repository == "" {
+				prInfo, err := github.FetchPRBranch(token, githubRepo, prNumber)
+				if err == nil {
+					if build.GitBranch == "" && prInfo.BranchName != "" {
+						build.GitBranch = prInfo.BranchName
+					}
+					if build.PRAuthor == "" && prInfo.Author != "" {
+						build.PRAuthor = prInfo.Author
+					}
+					if build.Repository == "" && prInfo.Repository != "" {
+						build.Repository = prInfo.Repository
 					}
 				}
-				
-				// Fetch PR check status
-				checkStatus := github.FetchPRCheckStatus(token, githubRepo, prNumber)
-				build.PRCheckStatus = checkStatus.Summary
+			}
+
+			// Fetch PR check status
+			checkStatus := github.FetchPRCheckStatus(token, githubRepo, prNumber)
+			build.PRCheckStatus = checkStatus.Summary
 			}
 		}
-		
+
 		return buildFetchedMsg{
 			index: index,
 			build: build,
@@ -65,19 +73,32 @@ func fetchBuildAndBranchCmd(client Client, prNumber string, index int) tea.Cmd {
 	}
 }
 
-// fetchBuildCmd is used for refresh - MUST preserve existing Git branch
-func fetchBuildCmd(client Client, prNumber string, index int, existingGitBranch string) tea.Cmd {
+// fetchBuildCmd is used for refresh - preserves Git branch but refreshes PR check status
+func fetchBuildCmd(client Client, prNumber string, index int, existingGitBranch, existingPRCheckStatus string) tea.Cmd {
 	return func() tea.Msg {
 		jobPath := jenkins.InferJobPath(prNumber)
 		branch := "PR-" + prNumber
 		build, err := client.GetBuildStatus(jobPath, branch, 0)
-		
-		// Preserve the Git branch from persistence file
-		// Don't re-fetch on every refresh - it doesn't change
-		if build != nil && existingGitBranch != "" {
-			build.GitBranch = existingGitBranch
+
+		if build != nil {
+			// Preserve the Git branch (doesn't change often)
+			if existingGitBranch != "" {
+				build.GitBranch = existingGitBranch
+			}
+
+			// Re-fetch PR check status for real-time updates
+			token := os.Getenv("GITHUB_TOKEN")
+			if token != "" {
+				githubRepo := os.Getenv("GITHUB_REPO")
+				if githubRepo == "" {
+					githubRepo = "identity-manage/account"
+				}
+
+				checkStatus := github.FetchPRCheckStatus(token, githubRepo, prNumber)
+				build.PRCheckStatus = checkStatus.Summary
+			}
 		}
-		
+
 		return buildFetchedMsg{
 			index: index,
 			build: build,

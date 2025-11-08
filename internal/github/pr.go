@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const (
+var (
 	githubAPIBase = "https://github.intuit.com/api/v3"
 	defaultRepo   = "identity-manage/account"
 )
@@ -15,11 +15,13 @@ const (
 // PRInfo contains PR information from GitHub
 type PRInfo struct {
 	BranchName string
+	Author     string
+	Repository string
 	Title      string
 }
 
-// FetchPRBranch fetches the Git branch name for a PR from GitHub
-func FetchPRBranch(token, repo, prNumber string) (string, error) {
+// FetchPRBranch fetches PR information including branch name, author, and repository from GitHub
+func FetchPRBranch(token, repo, prNumber string) (PRInfo, error) {
 	if repo == "" {
 		repo = defaultRepo
 	}
@@ -32,7 +34,7 @@ func FetchPRBranch(token, repo, prNumber string) (string, error) {
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return "", err
+		return PRInfo{Repository: repo}, err
 	}
 
 	if token != "" {
@@ -42,25 +44,32 @@ func FetchPRBranch(token, repo, prNumber string) (string, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return PRInfo{Repository: repo}, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		// Return empty string instead of error - branch name is optional
-		return "", nil
+		// Return empty PRInfo with repo instead of error - PR data is optional
+		return PRInfo{Repository: repo}, nil
 	}
 
 	var pr struct {
 		Head struct {
 			Ref string `json:"ref"` // This is the branch name
 		} `json:"head"`
+		User struct {
+			Login string `json:"login"` // PR author username
+		} `json:"user"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&pr); err != nil {
-		return "", nil
+		return PRInfo{Repository: repo}, nil
 	}
 
-	return pr.Head.Ref, nil
+	return PRInfo{
+		BranchName: pr.Head.Ref,
+		Author:     pr.User.Login,
+		Repository: repo,
+	}, nil
 }
 

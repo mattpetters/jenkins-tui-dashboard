@@ -46,6 +46,20 @@ func RenderTile(build models.Build, isSelected bool) string {
 		branchText,
 		strings.Repeat(" ", tileWidth-4-len(branchText)-branchPadding))
 	lines = append(lines, branchLine)
+	
+	// PR author (centered, below branch)
+	if build.PRAuthor != "" {
+		authorText := build.PRAuthor
+		if len(authorText) > tileWidth-4 {
+			authorText = authorText[:tileWidth-4]
+		}
+		authorPadding := (tileWidth - 4 - len(authorText)) / 2
+		authorLine := fmt.Sprintf("│ %s%s%s │",
+			strings.Repeat(" ", authorPadding),
+			authorText,
+			strings.Repeat(" ", tileWidth-4-len(authorText)-authorPadding))
+		lines = append(lines, authorLine)
+	}
 
 	// Separator
 	lines = append(lines, "├"+strings.Repeat("─", tileWidth-2)+"┤")
@@ -112,6 +126,18 @@ func RenderTile(build models.Build, isSelected bool) string {
 	if build.PRCheckStatus != "" {
 		checkLine := fmt.Sprintf("│ PR: %-24s │", build.PRCheckStatus)
 		lines = append(lines, checkLine)
+	}
+	
+	// Repository (bottom right)
+	if build.Repository != "" {
+		repoText := build.Repository
+		if len(repoText) > tileWidth-4 {
+			repoText = repoText[:tileWidth-4]
+		}
+		repoLine := fmt.Sprintf("│ %s%s │",
+			strings.Repeat(" ", tileWidth-4-len(repoText)),
+			repoText)
+		lines = append(lines, repoLine)
 	}
 	
 	// Bottom border

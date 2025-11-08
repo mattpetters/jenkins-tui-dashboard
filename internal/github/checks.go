@@ -81,29 +81,24 @@ func fetchPR(token, repo, prNumber string) (*prInfo, error) {
 func fetchCheckRuns(token, repo, sha string) (CheckStatus, error) {
 	client := &http.Client{Timeout: 3 * time.Second}
 	
-	url := fmt.Sprintf("%s/repos/%s/commits/%s/check-runs", githubAPIBase, repo, sha)
-	
-	req, err := http.NewRequest("GET", url, nil)
+	// Fetch Check Runs (GitHub Actions, GitHub Apps)
+	checkRunsURL := fmt.Sprintf("%s/repos/%s/commits/%s/check-runs", githubAPIBase, repo, sha)
+	checkRunsReq, err := http.NewRequest("GET", checkRunsURL, nil)
 	if err != nil {
 		return CheckStatus{}, err
 	}
-	
 	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
+		checkRunsReq.Header.Set("Authorization", "Bearer "+token)
 	}
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	checkRunsReq.Header.Set("Accept", "application/vnd.github.v3+json")
 	
-	resp, err := client.Do(req)
+	checkRunsResp, err := client.Do(checkRunsReq)
 	if err != nil {
 		return CheckStatus{}, err
 	}
-	defer resp.Body.Close()
+	defer checkRunsResp.Body.Close()
 	
-	if resp.StatusCode != http.StatusOK {
-		return CheckStatus{}, fmt.Errorf("status %d", resp.StatusCode)
-	}
-	
-	var result struct {
+	var checkRunsResult struct {
 		TotalCount int `json:"total_count"`
 		CheckRuns  []struct {
 			Status     string `json:"status"`
@@ -111,17 +106,51 @@ func fetchCheckRuns(token, repo, sha string) (CheckStatus, error) {
 		} `json:"check_runs"`
 	}
 	
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return CheckStatus{}, err
+	if checkRunsResp.StatusCode == http.StatusOK {
+		if err := json.NewDecoder(checkRunsResp.Body).Decode(&checkRunsResult); err != nil {
+			return CheckStatus{}, err
+		}
 	}
 	
-	// Count passed/failed checks
-	total := result.TotalCount
+	// Fetch Commit Statuses (traditional CI/CD status checks)
+	statusesURL := fmt.Sprintf("%s/repos/%s/commits/%s/statuses", githubAPIBase, repo, sha)
+	statusesReq, err := http.NewRequest("GET", statusesURL, nil)
+	if err != nil {
+		return CheckStatus{}, err
+	}
+	if token != "" {
+		statusesReq.Header.Set("Authorization", "Bearer "+token)
+	}
+	statusesReq.Header.Set("Accept", "application/vnd.github.v3+json")
+	
+	statusesResp, err := client.Do(statusesReq)
+	if err != nil {
+		return CheckStatus{}, err
+	}
+	defer statusesResp.Body.Close()
+	
+	var statuses []struct {
+		State   string `json:"state"`
+		Context string `json:"context"`
+	}
+	
+	if statusesResp.StatusCode == http.StatusOK {
+		if err := json.NewDecoder(statusesResp.Body).Decode(&statuses); err != nil {
+			return CheckStatus{}, err
+		}
+	}
+	
+	// Combine and count all checks
+	total := 0
 	passed := 0
 	failed := 0
+	completed := 0
 	
-	for _, check := range result.CheckRuns {
+	// Count Check Runs
+	for _, check := range checkRunsResult.CheckRuns {
+		total++
 		if check.Status == "completed" {
+			completed++
 			if check.Conclusion == "success" {
 				passed++
 			} else if check.Conclusion == "failure" {
@@ -130,16 +159,52 @@ func fetchCheckRuns(token, repo, sha string) (CheckStatus, error) {
 		}
 	}
 	
-	// Build summary
+	// Count Commit Statuses (deduplicate by context - only latest per context)
+	seenContexts := make(map[string]bool)
+	for _, status := range statuses {
+		// Skip if we've already seen this context (API returns newest first)
+		if seenContexts[status.Context] {
+			continue
+		}
+		seenContexts[status.Context] = true
+		
+		total++
+		// Commit statuses have different state values: success, pending, failure, error
+		if status.State == "success" {
+			completed++
+			passed++
+		} else if status.State == "failure" || status.State == "error" {
+			completed++
+			failed++
+		}
+		// "pending" means not completed, so don't increment completed
+	}
+	
+	// Build summary based on state
 	var summary string
 	if total == 0 {
 		summary = "no checks"
-	} else if passed == total {
-		summary = "all passed"
-	} else if failed > 0 {
-		summary = fmt.Sprintf("%d/%d failed", failed, total)
+	} else if completed == total {
+		// All checks are completed
+		if failed == 0 {
+			summary = "all passed"
+		} else if failed == 1 {
+			summary = "1 failed"
+		} else {
+			summary = fmt.Sprintf("%d failed", failed)
+		}
 	} else {
-		summary = fmt.Sprintf("%d/%d checks", passed, total)
+		// Some checks still in progress
+		if failed > 0 {
+			// Has failures and still running
+			summary = fmt.Sprintf("%d failed, %d/%d done", failed, completed, total)
+		} else if passed > 0 {
+			// Has passes, no failures yet, still running
+			summary = fmt.Sprintf("%d/%d passing", passed, total)
+		} else {
+			// Nothing completed yet
+			summary = fmt.Sprintf("%d/%d done", completed, total)
+		}
 	}
 	
 	return CheckStatus{

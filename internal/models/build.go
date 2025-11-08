@@ -25,6 +25,8 @@ func (s BuildStatus) String() string {
 type Build struct {
 	PRNumber        string
 	GitBranch       string // Git branch name from GitHub (e.g., "feature/add-auth")
+	PRAuthor        string // GitHub username of PR author
+	Repository      string // Repository in format "owner/repo" (e.g., "identity-manage/account")
 	PRCheckStatus   string // PR check status (e.g., "5/8 checks", "all passed")
 	Status          BuildStatus
 	Stage           string

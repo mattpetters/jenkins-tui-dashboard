@@ -34,6 +34,9 @@ Thumbs.db
 *.log
 .jenkins-dash-builds.json
 
+# Developer notes and worklogs (internal only, not for VCS)
+.dev-notes/
+
 # Compiled binaries
 /jenkins-dash
 

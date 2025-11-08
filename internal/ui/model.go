@@ -111,8 +111,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmds []tea.Cmd
 			for i, build := range m.state.Builds {
 				if build.Status != models.StatusPending {
-					// Pass existing Git branch to preserve it on refresh
-					cmds = append(cmds, fetchBuildCmd(m.jenkinsClient, build.PRNumber, i, build.GitBranch))
+					// Pass existing Git branch and PR check status to preserve them on refresh
+					cmds = append(cmds, fetchBuildCmd(m.jenkinsClient, build.PRNumber, i, build.GitBranch, build.PRCheckStatus))
 				}
 			}
 			cmds = append(cmds, tickCmd())
@@ -184,7 +184,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				var cmds []tea.Cmd
 				for i, build := range m.state.Builds {
 					if build.Status != models.StatusPending {
-						cmds = append(cmds, fetchBuildCmd(m.jenkinsClient, build.PRNumber, i, build.GitBranch))
+						// Pass existing Git branch and PR check status to preserve them on refresh
+						cmds = append(cmds, fetchBuildCmd(m.jenkinsClient, build.PRNumber, i, build.GitBranch, build.PRCheckStatus))
 					}
 				}
 				m.statusMessage = "Refreshing all builds..."
@@ -337,9 +338,9 @@ func (m Model) View() string {
 	headerStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("#FFFFFF")).
-		Padding(1, 2).  // More padding: top/bottom=1, left/right=2
-		MarginTop(1).   // Space from top of screen
-		MarginLeft(2)   // Space from left edge
+		Padding(1, 2). // More padding: top/bottom=1, left/right=2
+		MarginTop(1).  // Space from top of screen
+		MarginLeft(2)  // Space from left edge
 	header := headerStyle.Render("🔨 Jenkins Build Dashboard")
 	sections = append(sections, header)
 	sections = append(sections, "") // Extra line for breathing room
@@ -347,7 +348,7 @@ func (m Model) View() string {
 	// Main grid with left margin
 	gridContent := RenderGrid(m.state.Builds, m.state.SelectedIndex, m.state.GridColumns, m.blinkState)
 	gridWithMargin := lipgloss.NewStyle().
-		MarginLeft(2).  // Align with header
+		MarginLeft(2). // Align with header
 		Render(gridContent)
 	sections = append(sections, gridWithMargin)
 	sections = append(sections, "") // Space before input/status
