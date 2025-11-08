@@ -49,11 +49,12 @@ class JenkinsDashboardApp(App):
     }
     
     BuildTile {
-        width: 34;
-        height: 10;
-        min-width: 34;
-        min-height: 10;
-        content-align: center middle;
+        width: 36;
+        height: 11;
+        min-width: 36;
+        min-height: 11;
+        border: none;
+        background: transparent;
     }
     
     #pr-input {

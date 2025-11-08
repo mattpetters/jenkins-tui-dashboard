@@ -34,8 +34,20 @@ class Dashboard(Container):
     
     def on_mount(self) -> None:
         """Set up dashboard on mount."""
-        self.update_status("Press 'a' to add a PR build, arrow keys to navigate")
+        self.update_status("Press 'a' to add a PR build, arrow keys to navigate. For testing: PR-3859")
         self.refresh_grid()
+        
+        # Add test builds for debugging UI (ENABLED FOR TESTING)
+        # Comment out after verifying tiles are visible
+        self._add_test_builds()
+    
+    def _add_test_builds(self) -> None:
+        """Add test builds for debugging (development only)."""
+        from .test_build_helper import create_test_builds
+        for build in create_test_builds():
+            self.state.add_build(build)
+        self.refresh_grid()
+        self.update_status("Test builds added - Press 'a' to add more, arrows to navigate")
     
     def refresh_grid(self) -> None:
         """Refresh the grid layout with current builds."""
@@ -343,13 +355,20 @@ class Dashboard(Container):
             
             # Create a loading build immediately (no blocking API call)
             job_path = infer_job_path_from_pr(pr_num)
+            pr_branch = f"PR-{pr_num}"
+            
+            # Generate a basic build URL even without build number
+            from ..utils.url_builder import build_jenkins_build_url
+            basic_build_url = build_jenkins_build_url(job_path, pr_branch, 0).replace("/0", "/lastBuild")
+            
             loading_build = Build(
                 pr_number=pr_num,
                 status=BuildStatus.PENDING,
                 stage="Loading...",
                 job_name="Loading...",
                 job_path=job_path,
-                pr_url=build_pr_url(pr_num)
+                pr_url=build_pr_url(pr_num),
+                build_url=basic_build_url
             )
             
             # Add to state and display immediately

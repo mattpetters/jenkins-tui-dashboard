@@ -231,7 +231,14 @@ class JenkinsClient:
             Build object
         """
         pr_number = parse_pr_number(pr_number)
-        pr_branch = f"PR-{pr_number}"
+        
+        # Try to get actual branch name from GitHub
+        try:
+            from .github_helper import get_pr_branch_from_github
+            github_branch = get_pr_branch_from_github(pr_number)
+            pr_branch = github_branch if github_branch else f"PR-{pr_number}"
+        except:
+            pr_branch = f"PR-{pr_number}"
         
         if not job_path:
             job_path = infer_job_path_from_pr(pr_number)
