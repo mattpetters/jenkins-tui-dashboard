@@ -10,8 +10,8 @@ const (
 	// Updated to match your actual Jenkins job structure
 	defaultJobPath = "identity/job/identity-manage/job/account/job/account-eks"
 	jenkinsBaseURL = "https://build.intuit.com"
-	githubRepo     = "IntuitDeveloper/authentication-service"  // TODO: Update to correct repo
-	githubBaseURL  = "https://github.com"
+	githubRepo     = "identity-manage/account"  // Intuit internal repo
+	githubBaseURL  = "https://github.intuit.com"  // Intuit GitHub
 )
 
 // InferJobPath returns the Jenkins job path for a given PR number
@@ -20,12 +20,10 @@ func InferJobPath(prNumber string) string {
 	return defaultJobPath
 }
 
-// BuildPRURL constructs the Blue Ocean PR URL for the given PR number
+// BuildPRURL constructs the GitHub PR URL for the given PR number
 func BuildPRURL(prNumber string) string {
-	// Blue Ocean URL format: /blue/organizations/jenkins/{job-path}/detail/PR-{number}/{build}/pipeline
-	// For "view all builds" we can omit the build number
-	jobPathEncoded := strings.ReplaceAll(defaultJobPath, "/job/", "%2F")
-	return fmt.Sprintf("%s/blue/organizations/jenkins/%s/detail/PR-%s/", jenkinsBaseURL, jobPathEncoded, prNumber)
+	// Intuit GitHub URL
+	return fmt.Sprintf("%s/%s/pull/%s", githubBaseURL, githubRepo, prNumber)
 }
 
 // BuildJenkinsURL constructs the full Jenkins build URL (classic view)
@@ -40,14 +38,27 @@ func BuildJenkinsURL(jobPath, branch string, buildNumber int) string {
 
 // BuildBlueOceanBuildURL constructs the Blue Ocean pipeline view URL for a specific build
 func BuildBlueOceanBuildURL(jobPath, branch string, buildNumber int) string {
-	// Blue Ocean format: /blue/organizations/jenkins/{job-path}/detail/{branch}/{build}/pipeline
-	jobPathEncoded := strings.ReplaceAll(jobPath, "/job/", "%2F")
+	// Blue Ocean format: https://build.intuit.com/{first-segment}/blue/organizations/jenkins/{rest-of-path}/detail/{branch}/{build}/pipeline
+	// Example: identity/job/identity-manage/job/account/job/account-eks
+	// Becomes: https://build.intuit.com/identity/blue/organizations/jenkins/identity-manage%2Faccount%2Faccount-eks/detail/PR-3934/8/pipeline
+	
+	// Split job path to extract first segment
+	parts := strings.Split(jobPath, "/job/")
+	if len(parts) < 2 {
+		// Fallback if job path doesn't have expected structure
+		return fmt.Sprintf("%s/%s", jenkinsBaseURL, jobPath)
+	}
+	
+	firstSegment := parts[0]  // e.g., "identity"
+	restOfPath := strings.Join(parts[1:], "%2F")  // e.g., "identity-manage%2Faccount%2Faccount-eks"
+	
 	buildRef := fmt.Sprintf("%d", buildNumber)
 	if buildNumber == 0 {
 		buildRef = "lastBuild"
 	}
-	return fmt.Sprintf("%s/blue/organizations/jenkins/%s/detail/%s/%s/pipeline", 
-		jenkinsBaseURL, jobPathEncoded, branch, buildRef)
+	
+	return fmt.Sprintf("%s/%s/blue/organizations/jenkins/%s/detail/%s/%s/pipeline", 
+		jenkinsBaseURL, firstSegment, restOfPath, branch, buildRef)
 }
 
 // ParsePRNumber parses and validates a PR number from user input
