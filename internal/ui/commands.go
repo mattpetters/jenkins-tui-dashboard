@@ -73,8 +73,8 @@ func fetchBuildAndBranchCmd(client Client, prNumber string, index int) tea.Cmd {
 	}
 }
 
-// fetchBuildCmd is used for refresh - preserves Git branch but refreshes PR check status
-func fetchBuildCmd(client Client, prNumber string, index int, existingGitBranch, existingPRCheckStatus string) tea.Cmd {
+// fetchBuildCmd is used for refresh - preserves Git branch, PR author, and repository but refreshes PR check status
+func fetchBuildCmd(client Client, prNumber string, index int, existingGitBranch, existingPRCheckStatus, existingPRAuthor, existingRepository string) tea.Cmd {
 	return func() tea.Msg {
 		jobPath := jenkins.InferJobPath(prNumber)
 		branch := "PR-" + prNumber
@@ -84,6 +84,16 @@ func fetchBuildCmd(client Client, prNumber string, index int, existingGitBranch,
 			// Preserve the Git branch (doesn't change often)
 			if existingGitBranch != "" {
 				build.GitBranch = existingGitBranch
+			}
+
+			// Preserve the PR author
+			if existingPRAuthor != "" {
+				build.PRAuthor = existingPRAuthor
+			}
+
+			// Preserve the repository
+			if existingRepository != "" {
+				build.Repository = existingRepository
 			}
 
 			// Re-fetch PR check status for real-time updates

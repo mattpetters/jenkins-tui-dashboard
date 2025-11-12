@@ -111,8 +111,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmds []tea.Cmd
 			for i, build := range m.state.Builds {
 				if build.Status != models.StatusPending {
-					// Pass existing Git branch and PR check status to preserve them on refresh
-					cmds = append(cmds, fetchBuildCmd(m.jenkinsClient, build.PRNumber, i, build.GitBranch, build.PRCheckStatus))
+					// Pass existing Git branch, PR check status, PR author, and repository to preserve them on refresh
+					cmds = append(cmds, fetchBuildCmd(m.jenkinsClient, build.PRNumber, i, build.GitBranch, build.PRCheckStatus, build.PRAuthor, build.Repository))
 				}
 			}
 			cmds = append(cmds, tickCmd())
@@ -184,8 +184,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				var cmds []tea.Cmd
 				for i, build := range m.state.Builds {
 					if build.Status != models.StatusPending {
-						// Pass existing Git branch and PR check status to preserve them on refresh
-						cmds = append(cmds, fetchBuildCmd(m.jenkinsClient, build.PRNumber, i, build.GitBranch, build.PRCheckStatus))
+						// Pass existing Git branch, PR check status, PR author, and repository to preserve them on refresh
+						cmds = append(cmds, fetchBuildCmd(m.jenkinsClient, build.PRNumber, i, build.GitBranch, build.PRCheckStatus, build.PRAuthor, build.Repository))
 					}
 				}
 				m.statusMessage = "Refreshing all builds..."

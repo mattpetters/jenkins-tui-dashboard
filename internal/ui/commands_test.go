@@ -116,16 +116,18 @@ func TestFetchBuildCmd_RefreshesPRCheckStatus(t *testing.T) {
 	// These are the values we previously fetched from GitHub and stored
 	existingGitBranch := "feature/existing-branch"
 	existingCheckStatus := "5/8 checks"
+	existingPRAuthor := "test-author"
+	existingRepository := "test-org/test-repo"
 
-	// Test that Git branch is preserved but PR check status is refreshed
-	t.Run("GitBranch is preserved but PRCheckStatus is refreshed", func(t *testing.T) {
+	// Test that Git branch, PR author, and repository are preserved but PR check status is refreshed
+	t.Run("GitBranch, PRAuthor, and Repository are preserved but PRCheckStatus is refreshed", func(t *testing.T) {
 		// Set up GitHub token so the refresh will attempt to fetch
 		os.Setenv("GITHUB_TOKEN", "test-token")
 		os.Setenv("GITHUB_REPO", "test-org/test-repo")
 		defer os.Unsetenv("GITHUB_TOKEN")
 		defer os.Unsetenv("GITHUB_REPO")
 
-		cmd := fetchBuildCmd(mockClient, "12345", 0, existingGitBranch, existingCheckStatus)
+		cmd := fetchBuildCmd(mockClient, "12345", 0, existingGitBranch, existingCheckStatus, existingPRAuthor, existingRepository)
 		msg := cmd()
 
 		buildMsg, ok := msg.(buildFetchedMsg)
@@ -140,6 +142,16 @@ func TestFetchBuildCmd_RefreshesPRCheckStatus(t *testing.T) {
 		// Git branch should be preserved
 		if buildMsg.build.GitBranch != existingGitBranch {
 			t.Errorf("Expected GitBranch to be preserved as %s, got %s", existingGitBranch, buildMsg.build.GitBranch)
+		}
+
+		// PR author should be preserved
+		if buildMsg.build.PRAuthor != existingPRAuthor {
+			t.Errorf("Expected PRAuthor to be preserved as %s, got %s", existingPRAuthor, buildMsg.build.PRAuthor)
+		}
+
+		// Repository should be preserved
+		if buildMsg.build.Repository != existingRepository {
+			t.Errorf("Expected Repository to be preserved as %s, got %s", existingRepository, buildMsg.build.Repository)
 		}
 
 		// PRCheckStatus should be refreshed (will be "unknown" with invalid token, but the key is it's NOT the old value)
@@ -197,6 +209,8 @@ func TestPRCheckStatusRefreshThroughAutoRefresh(t *testing.T) {
 		// These values would have been saved from the initial fetch
 		existingGitBranch := "feature/test"
 		existingPRCheckStatus := "5/8 checks"
+		existingPRAuthor := "test-author"
+		existingRepository := "test-org/test-repo"
 
 		// Set up GitHub token for the refresh
 		os.Setenv("GITHUB_TOKEN", "test-token")
@@ -205,7 +219,7 @@ func TestPRCheckStatusRefreshThroughAutoRefresh(t *testing.T) {
 		defer os.Unsetenv("GITHUB_REPO")
 
 		// Auto-refresh fetches Jenkins data again AND re-fetches PR check status
-		cmd := fetchBuildCmd(mockClient, "12345", 0, existingGitBranch, existingPRCheckStatus)
+		cmd := fetchBuildCmd(mockClient, "12345", 0, existingGitBranch, existingPRCheckStatus, existingPRAuthor, existingRepository)
 		msg := cmd()
 
 		buildMsg, ok := msg.(buildFetchedMsg)
@@ -220,6 +234,16 @@ func TestPRCheckStatusRefreshThroughAutoRefresh(t *testing.T) {
 		// Git branch should be preserved
 		if buildMsg.build.GitBranch != existingGitBranch {
 			t.Errorf("Expected GitBranch preserved as %s, got %s", existingGitBranch, buildMsg.build.GitBranch)
+		}
+
+		// PR author should be preserved
+		if buildMsg.build.PRAuthor != existingPRAuthor {
+			t.Errorf("Expected PRAuthor preserved as %s, got %s", existingPRAuthor, buildMsg.build.PRAuthor)
+		}
+
+		// Repository should be preserved
+		if buildMsg.build.Repository != existingRepository {
+			t.Errorf("Expected Repository preserved as %s, got %s", existingRepository, buildMsg.build.Repository)
 		}
 
 		// PR check status should be refreshed (not preserved)
